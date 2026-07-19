@@ -8,6 +8,13 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
+  session:
+    # セッションをPostgreSQL(spring_sessionテーブル)に保存。
+    # バックエンド再起動・本番のデプロイでユーザーがログアウトされない
+    jdbc:
+      initialize-schema: always # テーブル自動作成(実験用。本実装はFlywayに移す)
+    # サーバ側セッションの寿命 = 最後の操作から14日
+    timeout: 14d
   security:
     oauth2:
       client:
@@ -43,6 +50,8 @@ server:
         http-only: true
         # Lax: 外部サイトからのPOSTにCookieが乗らない(CSRF対策の一層目)
         same-site: lax
+        # Cookieを永続化(ブラウザを閉じても残す)。サーバ側timeoutと同じ14日
+        max-age: 14d
 
 management:
   endpoints:

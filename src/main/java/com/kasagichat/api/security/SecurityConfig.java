@@ -83,7 +83,8 @@ public class SecurityConfig {
                 .logout(logout -> logout
                         .logoutUrl("/api/logout")
                         .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
+                        // Spring Session導入後のCookie名はSESSION(旧JSESSIONIDも念のため消す)
+                        .deleteCookies("SESSION", "JSESSIONID")
                         .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler()));
         return http.build();
     }
