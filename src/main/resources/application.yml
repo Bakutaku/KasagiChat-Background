@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/kasagichat}
+    username: ${DB_USERNAME:kasagichat}
+    password: ${DB_PASSWORD:kasagichat}
+  jpa:
+    # 実験用の簡易設定。本実装ではFlyway等のマイグレーション管理に置き換える
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: ${GITHUB_CLIENT_ID:dummy-client-id}
+            client-secret: ${GITHUB_CLIENT_SECRET:dummy-client-secret}
+            scope: read:user
+            # 同一オリジン構成: コールバックはNext.js(3000)経由でSpringに届く
+            redirect-uri: "${APP_PUBLIC_URL:http://localhost:3000}/api/login/oauth2/code/{registrationId}"
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:dummy-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dummy-client-secret}
+            scope: openid,profile
+            redirect-uri: "${APP_PUBLIC_URL:http://localhost:3000}/api/login/oauth2/code/{registrationId}"
+
+server:
+  servlet:
+    session:
+      cookie:
+        # HttpOnly: JSからセッションIDを読めなくする(XSS対策)
+        http-only: true
+        # Lax: 外部サイトからのPOSTにCookieが乗らない(CSRF対策の一層目)
+        same-site: lax
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
