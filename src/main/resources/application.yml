@@ -17,14 +17,17 @@ spring:
             client-secret: ${GITHUB_CLIENT_SECRET:dummy-client-secret}
             scope: read:user
             # 同一オリジン構成: コールバックはNext.js(3000)経由でSpringに届く
-            redirect-uri: "${APP_PUBLIC_URL:http://localhost:3000}/api/login/oauth2/code/{registrationId}"
+            redirect-uri: "${app.public-url}/api/login/oauth2/code/{registrationId}"
           google:
             client-id: ${GOOGLE_CLIENT_ID:dummy-client-id}
             client-secret: ${GOOGLE_CLIENT_SECRET:dummy-client-secret}
             scope: openid,profile
-            redirect-uri: "${APP_PUBLIC_URL:http://localhost:3000}/api/login/oauth2/code/{registrationId}"
+            redirect-uri: "${app.public-url}/api/login/oauth2/code/{registrationId}"
 
 app:
+  # ブラウザから見えるこのアプリの公開URL。プロキシ越しではSpringが自分のURLを
+  # backend:8080 と誤認するため、ブラウザへ返すリダイレクト先はすべてここから組み立てる
+  public-url: ${APP_PUBLIC_URL:http://localhost:3000}
   jwt:
     # HS256の署名鍵(32バイト以上必須)。本番では必ず環境変数JWT_SECRETで上書きする
     secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}

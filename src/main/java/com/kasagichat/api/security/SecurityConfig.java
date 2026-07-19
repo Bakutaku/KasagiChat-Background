@@ -1,5 +1,6 @@
 package com.kasagichat.api.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -60,7 +61,8 @@ public class SecurityConfig {
     /** ブラウザ用チェーン(OAuthログイン + セッションCookie)。上のチェーンに該当しないリクエストはこちら。 */
     @Bean
     @Order(2)
-    SecurityFilterChain sessionChain(HttpSecurity http, OAuthLoginSuccessHandler successHandler) throws Exception {
+    SecurityFilterChain sessionChain(HttpSecurity http, OAuthLoginSuccessHandler successHandler,
+            @Value("${app.public-url}") String publicUrl) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health").permitAll()
@@ -75,7 +77,7 @@ public class SecurityConfig {
                         .authorizationEndpoint(a -> a.baseUri("/api/oauth2/authorization"))
                         .redirectionEndpoint(r -> r.baseUri("/api/login/oauth2/code/*"))
                         .successHandler(successHandler)
-                        .failureHandler(new SimpleUrlAuthenticationFailureHandler("/login?error=oauth")))
+                        .failureHandler(new SimpleUrlAuthenticationFailureHandler(publicUrl + "/login?error=oauth")))
                 // 未認証のAPIアクセスはログイン画面へのリダイレクトではなく401を返す(SPA向け)
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .logout(logout -> logout

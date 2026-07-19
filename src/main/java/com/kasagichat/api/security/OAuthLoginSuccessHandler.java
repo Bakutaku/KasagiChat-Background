@@ -2,6 +2,7 @@ package com.kasagichat.api.security;
 
 import java.io.IOException;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -21,9 +22,12 @@ public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHand
 
     private final AppUserService userService;
 
-    public OAuthLoginSuccessHandler(AppUserService userService) {
+    public OAuthLoginSuccessHandler(AppUserService userService,
+            @Value("${app.public-url}") String publicUrl) {
         this.userService = userService;
-        setDefaultTargetUrl("/");
+        // 相対URL("/")はTomcatがプロキシ側のHost(backend:8080)で絶対URL化してしまうため、
+        // ブラウザから見える公開URLで明示的に指定する
+        setDefaultTargetUrl(publicUrl + "/");
         setAlwaysUseDefaultTargetUrl(true);
     }
 
