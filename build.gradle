@@ -24,6 +24,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-client'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	// JWT実験用: Bearerトークン検証(resource-server)とJWTの発行/署名(jose)
+	implementation 'org.springframework.security:spring-security-oauth2-resource-server'
+	implementation 'org.springframework.security:spring-security-oauth2-jose'
 	runtimeOnly 'org.postgresql:postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'

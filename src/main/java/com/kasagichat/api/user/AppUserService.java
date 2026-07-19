@@ -2,8 +2,10 @@ package com.kasagichat.api.user;
 
 import java.util.Optional;
 
+import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,31 @@ public class AppUserService {
                     return user;
                 })
                 .orElseGet(() -> repository.save(new AppUser(provider, subject, displayName, avatarUrl)));
+    }
+
+    /**
+     * 認証方式を問わずログイン中ユーザーを引く。
+     * - セッション(OAuth2AuthenticationToken): provider + subject で検索
+     * - Bearer(JwtAuthenticationToken): JWTのsubクレーム = ユーザーID で検索
+     */
+    @Transactional(readOnly = true)
+    public Optional<AppUser> findByAuthentication(Authentication authentication) {
+        if (authentication instanceof OAuth2AuthenticationToken oauth) {
+            return findByLogin(oauth);
+        }
+        if (authentication instanceof JwtAuthenticationToken jwt) {
+            try {
+                return repository.findById(Long.parseLong(jwt.getToken().getSubject()));
+            } catch (NumberFormatException e) {
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<AppUser> findById(Long id) {
+        return repository.findById(id);
     }
 
     @Transactional(readOnly = true)

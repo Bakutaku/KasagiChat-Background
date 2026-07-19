@@ -24,6 +24,14 @@ spring:
             scope: openid,profile
             redirect-uri: "${APP_PUBLIC_URL:http://localhost:3000}/api/login/oauth2/code/{registrationId}"
 
+app:
+  jwt:
+    # HS256の署名鍵(32バイト以上必須)。本番では必ず環境変数JWT_SECRETで上書きする
+    secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
+    # アクセストークンは短命(漏れても被害時間を限定)、リフレッシュは長命(DBで失効管理)
+    access-token-ttl: 15m
+    refresh-token-ttl: 30d
+
 server:
   servlet:
     session:
