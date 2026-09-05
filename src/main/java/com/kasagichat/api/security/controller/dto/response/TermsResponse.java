@@ -6,13 +6,13 @@ import com.kasagichat.api.security.model.Terms;
 import com.kasagichat.api.security.model.enums.TermsType;
 
 /**
- * 規約情報のレスポンス
- * 
- * @param id          規約ID
- * @param type        規約種別
- * @param version     バージョン
- * @param title       タイトル
- * @param content     本文
+ * ユーザーへ提示する規約情報。
+ *
+ * @param id 規約ID
+ * @param type 規約種別
+ * @param version バージョン
+ * @param title タイトル
+ * @param content 本文
  * @param effectiveAt 効力発生日時
  */
 public record TermsResponse(
@@ -24,9 +24,10 @@ public record TermsResponse(
         Instant effectiveAt) {
     
     /**
-     * DBエンティティを変換
-     * @param terms 規約エンティティ
-     * @return レスポンス用の規約情報
+     * 規約Entityをレスポンスへ変換する。
+     *
+     * @param terms 変換元の規約Entity
+     * @return ユーザーへ提示する規約レスポンス
      */
     public static TermsResponse from(Terms terms) {
         return new TermsResponse(

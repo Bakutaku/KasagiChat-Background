@@ -33,19 +33,19 @@ public class OAuthIdentityResolver {
     public OAuthIdentity resolve(OAuth2AuthenticationToken authentication) {
         OAuth2User principal = authentication.getPrincipal();
 
-        // application.ymlのregistration ID（google、github）をAuthProviderへ対応付ける。
+        // Client Registration IDをアプリケーションの認証プロバイダーへ対応付ける。
         AuthProvider provider = AuthProvider.valueOf(
                 authentication.getAuthorizedClientRegistrationId()
                         .toUpperCase(Locale.ROOT)
         );
 
-        // Googleはname、GitHubはnameが未設定の場合があるためloginを予備値として使う。
+        // GitHubではnameが未設定の場合があるため、loginを予備値として使う。
         String displayName = firstNonBlank(
                 principal.getAttribute("name"),
                 principal.getAttribute("login")
         );
 
-        // GoogleとGitHubでアバターURLの属性名が異なる。
+        // プロバイダーによって異なるアバターURLの属性名を吸収する。
         String avatarUrl = firstNonBlank(
                 principal.getAttribute("picture"),
                 principal.getAttribute("avatar_url")

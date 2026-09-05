@@ -20,6 +20,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * OAuth認証済みで本登録前のユーザー情報を保持するEntity。
+ */
 @Getter
 @Setter
 @Builder
@@ -29,43 +32,46 @@ import lombok.Setter;
 @Table(
     uniqueConstraints = @UniqueConstraint(
         name = "uk_pending_users_provider_subject",
-        columnNames = {"provider", "subject" } // providerとsubjectの組み合わせが一意であることを保証
+        columnNames = {"provider", "subject" } // providerとsubjectの組み合わせが一意であることを保証する。
     )
 )
 public class PendingUsers extends BaseTimeEntity{
     
     /**
-     * 一時ユーザーID
+     * 仮登録ユーザーの内部ID。
      */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /**
-     * 認証プロバイダー
+     * OAuth認証に使用したプロバイダー。
      */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private AuthProvider provider;
 
     /**
-     * 認証プロバイダーが発行するユーザー識別子
+     * OAuthプロバイダー内で一意なユーザー識別子。
      */
     @Column(nullable = false, length = 255)
     private String subject;
 
     /**
-     * ユーザー名
+     * 本登録時に使用する表示名の候補。
      */
     @Column(nullable = false, length = 50)
     private String displayName;
 
     /**
-     * アバターURL
+     * 本登録時に引き継ぐアバター画像URL。
      */
     @Column(length = 2048)
     private String avatarUrl;
 
+    /**
+     * 仮登録情報の有効期限。
+     */
     @Column(nullable = false)
     private Instant expiresAt;
 }

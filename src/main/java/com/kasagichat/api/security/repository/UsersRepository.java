@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.kasagichat.api.security.model.Users;
 
 /**
- * ユーザー情報のリポジトリ
+ * 本登録済みユーザーの情報を永続化するRepository。
  */
 public interface UsersRepository extends JpaRepository<Users,Long>{
     

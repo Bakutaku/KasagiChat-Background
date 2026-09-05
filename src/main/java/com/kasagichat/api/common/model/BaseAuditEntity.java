@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 監査情報を持つエンティティのベースクラス
+ * 作成者と更新者の監査情報を持つエンティティの基底クラス。
  */
 @Getter
 @Setter
@@ -20,14 +20,14 @@ import lombok.Setter;
 public abstract class BaseAuditEntity extends BaseTimeEntity {
     
     /**
-     * 作成者
+     * 作成者の内部ユーザーID。
      */
     @CreatedBy
     @Column(updatable = false)
     private Long createdBy;
 
     /**
-     * 更新者
+     * 最終更新者の内部ユーザーID。
      */
     @LastModifiedBy
     @Column

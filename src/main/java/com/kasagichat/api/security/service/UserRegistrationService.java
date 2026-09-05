@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.kasagichat.api.security.controller.dto.request.UserRegistrationRequest;
 import com.kasagichat.api.security.exception.PendingRegistrationExpiredException;
 import com.kasagichat.api.security.exception.PendingRegistrationNotFoundException;
+import com.kasagichat.api.security.exception.TermsAgreementRequiredException;
 import com.kasagichat.api.security.exception.UserAlreadyRegisteredException;
 import com.kasagichat.api.security.model.PendingUsers;
 import com.kasagichat.api.security.model.Terms;
@@ -23,6 +24,9 @@ import com.kasagichat.api.security.repository.UsersRepository;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * OAuth認証後の仮登録情報を管理し、ユーザーの本登録を行うService。
+ */
 @Service
 @RequiredArgsConstructor
 public class UserRegistrationService {
@@ -32,9 +36,19 @@ public class UserRegistrationService {
     private final PendingUsersRepository pendingUsersRepository;
     private final UserAuthRepository userAuthRepository;
     private final UsersRepository usersRepository;
-
     private final TermsService termsService;
 
+    /**
+     * 仮登録情報と規約同意を検証し、ユーザーを本登録する。
+     *
+     * @param pendingUserId 本登録する仮登録ユーザーの内部ID
+     * @param request 表示名と同意した規約IDを含む登録リクエスト
+     * @return 登録されたユーザー
+     * @throws PendingRegistrationNotFoundException 仮登録情報が存在しない場合
+     * @throws PendingRegistrationExpiredException 仮登録情報が期限切れの場合
+     * @throws UserAlreadyRegisteredException OAuthアカウントが登録済みの場合
+     * @throws TermsAgreementRequiredException 最新規約への同意が不足している場合
+     */
     @Transactional
     public Users registration(Long pendingUserId, UserRegistrationRequest request) {
         // 仮登録ユーザー取得
@@ -70,7 +84,7 @@ public class UserRegistrationService {
     /**
      * アカウント作成画面に表示する仮登録情報の存在と有効期限を検証する。
      *
-     * @param pendingUserId サーバーセッション内のPrincipalから取得した仮登録ID
+     * @param pendingUserId サーバーセッション内のPrincipalから取得した仮登録ユーザーID
      * @return 有効な仮登録情報
      * @throws PendingRegistrationNotFoundException 仮登録情報が存在しない場合
      * @throws PendingRegistrationExpiredException 仮登録情報が期限切れの場合
@@ -85,9 +99,9 @@ public class UserRegistrationService {
     }
 
     /**
-     * OAuth識別情報に対応する仮登録レコードを作成または更新する。
+     * OAuth識別情報に対応する仮登録情報を作成または更新する。
      *
-     * <p>同じOAuthアカウントでログインをやり直した場合はレコードを増やさず、
+     * <p>同じOAuthアカウントで再度ログインした場合はレコードを増やさず、
      * プロフィール候補と有効期限を更新する。</p>
      *
      * @param provider 認証に使用したOAuthプロバイダー
@@ -115,8 +129,14 @@ public class UserRegistrationService {
 
 
     /**
-     * ユーザー作成可能か判定
-     * @return 作成可否
+     * 仮登録情報、重複登録および規約同意を検証する。
+     *
+     * @param pendingUser 登録対象の仮登録ユーザー
+     * @param agreedTermsIds ユーザーが同意した規約IDの集合
+     * @return 同意履歴へ保存する最新規約の一覧
+     * @throws PendingRegistrationExpiredException 仮登録情報が期限切れの場合
+     * @throws UserAlreadyRegisteredException OAuthアカウントが登録済みの場合
+     * @throws TermsAgreementRequiredException 最新規約への同意が不足している場合
      */
     private List<Terms> userRegistrationCheck(PendingUsers pendingUser,Set<Long> agreedTermsIds) {
         // 仮登録の有効期限確認
@@ -124,7 +144,7 @@ public class UserRegistrationService {
             throw new PendingRegistrationExpiredException();
         }
 
-        // 二重登録防止のため既存登録がないか確認する
+        // 同じOAuthアカウントの二重登録を防止する。
         if(userAuthRepository.findByProviderAndSubject(
             pendingUser.getProvider(),
             pendingUser.getSubject()
@@ -138,7 +158,10 @@ public class UserRegistrationService {
 
 
     /**
-     * OAuth側の表示名をDBの必須・最大長制約に収まる値へ整形する。
+     * OAuth側の表示名をデータベースの必須・最大長制約に収まる値へ整形する。
+     *
+     * @param displayName OAuthプロバイダーから取得した表示名
+     * @return 必須・最大長制約を満たす表示名
      */
     private String normalizeDisplayName(String displayName) {
         if (displayName == null || displayName.isBlank()) {

@@ -33,20 +33,35 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 /**
- * OAuth認証成功後の処理
+ * OAuth認証成功後に既存ユーザーのログインまたは仮登録を行うハンドラー。
  */
 @Component
 @RequiredArgsConstructor
 public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final SecurityProperties securityProperties;
+
     private final OAuthIdentityResolver identityResolver;
+
     private final UserAuthRepository userAuthRepository;
     private final SecurityContextRepository securityContextRepository;
+
     private final AuthenticationFailureHandler authenticationFailureHandler;
 
     private final UserRegistrationService userRegistrationService;
 
+    /**
+     * OAuth認証結果からアプリケーションの認証情報を生成し、保存後に画面遷移する。
+     *
+     * <p>登録済みのOAuthアカウントはログイン状態にし、未登録のアカウントは
+     * 仮登録状態にしてアカウント作成画面へ遷移させる。</p>
+     *
+     * @param request OAuth認証成功時のHTTPリクエスト
+     * @param response リダイレクトに使用するHTTPレスポンス
+     * @param authentication Spring Securityが生成した認証情報
+     * @throws IOException リダイレクトまたは認証失敗レスポンスの送信に失敗した場合
+     * @throws ServletException 認証失敗処理でServletエラーが発生した場合
+     */
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
             Authentication authentication) throws IOException, ServletException {
@@ -66,11 +81,8 @@ public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHand
             return;
         }
 
-        // OAuth情報
         OAuthIdentity identity = identityResolver.resolve(oauthToken);
-        // 認証情報
         Authentication auth;
-        // リダイレクト先
         String redirectPath;
 
         Optional<UserAuth> existingAuth = userAuthRepository.findByProviderAndSubject(
@@ -102,6 +114,13 @@ public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHand
         getRedirectStrategy().sendRedirect(request, response, securityProperties.frontendUrl().resolve(redirectPath).toString());
     }
 
+    /**
+     * 指定した認証主体と権限から認証済みの認証情報を生成する。
+     *
+     * @param principal アプリケーションの認証主体
+     * @param authority 認証主体へ付与する権限
+     * @return 認証済みの認証情報
+     */
     private Authentication authenticated(Object principal, String authority) {
         return UsernamePasswordAuthenticationToken.authenticated(
             principal,

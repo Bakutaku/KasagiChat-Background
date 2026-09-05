@@ -13,7 +13,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 作成日時と更新日時を持つエンティティのベースクラス
+ * 作成日時と更新日時を持つエンティティの基底クラス。
  */
 @Getter
 @Setter
@@ -22,14 +22,14 @@ import lombok.Setter;
 public abstract class BaseTimeEntity {
 
     /**
-     * 作成日時
+     * エンティティの作成日時。
      */
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     /**
-     * 更新日時
+     * エンティティの最終更新日時。
      */
     @LastModifiedDate
     @Column(name = "updated_at", nullable = false)

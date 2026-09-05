@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * 規約同意履歴テーブル
+ * ユーザーが同意した規約と同意日時を保持するEntity。
  */
 @Getter
 @Setter
@@ -41,20 +41,29 @@ import lombok.Setter;
 public class UserTermsAgreement extends BaseTimeEntity{
     
     /**
-     * 同意ID
+     * 規約同意履歴の内部ID。
      */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * 規約へ同意したユーザー。
+     */
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private Users user;
 
+    /**
+     * ユーザーが同意した規約。
+     */
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "terms_id", nullable = false)
     private Terms terms;
 
+    /**
+     * ユーザーが規約へ同意した日時。
+     */
     @Column(nullable = false)
     private Instant agreedAt;
 }

@@ -15,7 +15,8 @@ public interface UserAuthRepository extends JpaRepository<UserAuth, Long> {
 
     /**
      * 認証プロバイダーとプロバイダー側のユーザー識別子から認証情報を取得する。
-     * 関連するユーザー情報も同時に取得する。
+     *
+     * <p>関連するユーザー情報も同時に取得する。</p>
      *
      * @param provider 認証プロバイダー
      * @param subject プロバイダー側のユーザー識別子

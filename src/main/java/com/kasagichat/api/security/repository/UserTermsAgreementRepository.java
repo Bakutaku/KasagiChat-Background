@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.kasagichat.api.security.model.UserTermsAgreement;
 
 /**
- * 規約同意履歴リポジトリ
+ * ユーザーの規約同意履歴を永続化するRepository。
  */
 public interface UserTermsAgreementRepository
         extends JpaRepository<UserTermsAgreement, Long> {

@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 規約同意
+ * 最新規約の取得、同意内容の検証および同意履歴の保存を行うService。
  */
 @Service
 @RequiredArgsConstructor
@@ -42,9 +42,11 @@ public class TermsService {
     }
 
     /**
-     * 規約確認
-     * @param agreedTermsIds 同意した規約
-     * @return 対象の規約
+     * ユーザーが現在有効なすべての最新規約へ同意していることを検証する。
+     *
+     * @param agreedTermsIds ユーザーが同意した規約IDの集合
+     * @return 同意履歴へ保存する最新規約の一覧
+     * @throws TermsAgreementRequiredException 有効な規約が存在しないか、同意が不足している場合
      */
     @Transactional(readOnly = true)
     public List<Terms> validateAndGetLatestTerms(Set<Long> agreedTermsIds) {
@@ -66,10 +68,10 @@ public class TermsService {
 
 
     /**
-     * 規約同意履歴の作成
-     * @param consentTerms 同意対象
-     * @param user 対象ユーザー
-     * @param now 同意日時
+     * 指定されたユーザーの規約同意履歴を現在日時で保存する。
+     *
+     * @param consentTerms 同意履歴へ保存する規約の一覧
+     * @param user 規約へ同意したユーザー
      */
     public void consent(List<Terms> consentTerms,Users user) {
         userTermsAgreementRepository.saveAll(

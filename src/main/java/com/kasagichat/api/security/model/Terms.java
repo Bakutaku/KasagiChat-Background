@@ -22,8 +22,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 規約マスタ
- * 利用規約等の規約管理用のマスタ
+ * 利用規約やプライバシーポリシーを管理する規約マスタEntity。
  */
 @Getter
 @Setter
@@ -32,46 +31,46 @@ import lombok.Setter;
 @Table(
     uniqueConstraints = @UniqueConstraint(
         name = "uk_terms_type_version",
-        columnNames = {"type", "version"} // typeとversionの組み合わせが一意であることを保証
+        columnNames = {"type", "version"} // typeとversionの組み合わせが一意であることを保証する。
     )
 )
 public class Terms extends BaseTimeEntity {
 
     /**
-     * 規約ID
+     * 規約の内部ID。
      */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /**
-     * 規約種類
+     * 規約の種類。
      */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30, updatable = false)
     private TermsType type;
 
     /**
-     * バージョン
+     * 規約のバージョン。
      */
     @Column(nullable = false, length = 30, updatable = false)
     private String version;
 
     /**
-     * タイトル
+     * ユーザーへ表示する規約のタイトル。
      */
     @Column(nullable = false, length = 200, updatable = false)
     private String title;
 
     /**
-     * 規約内容
+     * ユーザーへ表示する規約の本文。
      */
     @Lob
     @Column(nullable = false, updatable = false)
     private String content;
 
     /**
-     * 効力発生日
+     * 規約の効力発生日時。
      */
     @Column(nullable = false)
     private Instant effectiveAt;

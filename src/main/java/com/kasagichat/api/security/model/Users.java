@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * ユーザー情報を保持するクラス。
+ * 本登録済みユーザーのプロフィール情報を保持するEntity。
  */
 @Getter
 @Setter
@@ -37,26 +37,26 @@ import lombok.Setter;
 public class Users extends BaseTimeEntity {
 
     /**
-     * ユーザーID
+     * ユーザーの内部ID。
      */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /**
-     * 公開ユーザーID
+     * APIでユーザーを識別する公開ID。
      */
     @Column(nullable = false, updatable = false, unique = true)
     private UUID publicId;
 
     /**
-     * ユーザー名
+     * ユーザーの表示名。
      */
     @Column(nullable = false, length = 50)
     private String displayName;
 
     /**
-     * アバターURL
+     * ユーザーのアバター画像URL。
      */
     @Column(length = 2048)
     private String avatarUrl;

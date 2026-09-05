@@ -23,8 +23,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * 外部認証テーブル
- * 外部認証サービスのアカウントとユーザーの紐付けを保持するクラス。
+ * OAuthアカウントと本登録済みユーザーの紐付けを保持するEntity。
  */
 @Getter
 @Setter
@@ -35,35 +34,35 @@ import lombok.Setter;
 @Table(
     uniqueConstraints = @UniqueConstraint(
         name = "uk_user_auth_provider_subject",
-        columnNames = {"provider", "subject" } // providerとsubjectの組み合わせが一意であることを保証
+        columnNames = {"provider", "subject" } // providerとsubjectの組み合わせが一意であることを保証する。
     ), 
     indexes = @Index(name = "idx_user_auth_user_id", columnList = "user_id")
 )
 public class UserAuth extends BaseTimeEntity {
 
     /**
-     * ユーザー認証ID
+     * 外部認証情報の内部ID。
      */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /**
-     * ユーザーID
+     * OAuthアカウントに紐付くユーザー。
      */
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private Users user;
 
     /**
-     * 認証プロバイダー
+     * OAuth認証に使用するプロバイダー。
      */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private AuthProvider provider;
 
     /**
-     * 認証プロバイダーが発行するユーザー識別子
+     * OAuthプロバイダー内で一意なユーザー識別子。
      */
     @Column(nullable = false, length = 255)
     private String subject;

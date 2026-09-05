@@ -1,7 +1,8 @@
 package com.kasagichat.api.security.controller.dto.response;
 
 /**
- * 仮登録ユーザーの登録情報
+ * アカウント作成画面に表示する仮登録ユーザー情報。
+ *
  * @param displayName 表示名
  * @param avatarUrl アバターURL
  */

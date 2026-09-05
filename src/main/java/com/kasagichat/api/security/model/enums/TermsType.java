@@ -1,15 +1,16 @@
 package com.kasagichat.api.security.model.enums;
 
 /**
- * 規約種類
+ * ユーザーへ提示する規約の種類。
  */
 public enum TermsType {
     /**
-     * 利用規約
+     * 利用規約。
      */
     TERMS_OF_SERVICE,
+
     /**
-     * プライバシーポリシー
+     * プライバシーポリシー。
      */
     PRIVACY_POLICY
 }

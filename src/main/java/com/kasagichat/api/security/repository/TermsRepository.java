@@ -16,7 +16,9 @@ public interface TermsRepository extends JpaRepository<Terms, Long> {
 
     /**
      * 指定日時点で有効な最新の規約を、規約種類ごとに取得する。
-     * 同じ規約種類、効力発生日の規約が複数ある場合は、IDが最大のものを取得する。
+     *
+     * <p>同じ規約種類かつ同じ効力発生日の規約が複数ある場合は、
+     * IDが最大のものを取得する。</p>
      *
      * @param now 有効な規約を判定する基準日時
      * @return 規約種類ごとの最新規約一覧
