@@ -2,44 +2,47 @@ spring:
   application:
     name: KasagiChat
 
+  profiles:
+    # 指定漏れ時に開発用設定で起動しないよう、安全側の本番設定を使用する。
+    default: prod
+
   # docker-compose.yml (.devcontainer) の app/db コンテナ環境変数と一致させています
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOSTNAME:localhost}:5432/${POSTGRES_DB:postgres}
+    url: jdbc:postgresql://${POSTGRESQL_HOSTNAME:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:postgres}
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     open-in-view: false
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
 
   session:
     store-type: jdbc
     jdbc:
-      initialize-schema: always
       table-name: SPRING_SESSION
 
-  # security:
-  #   oauth2:
-  #     client:
-  #       registration:
-  #         # 例: Google/GitHub 等でログインを実装する際に有効化
-  #         # google:
-  #         #   client-id: ${GOOGLE_CLIENT_ID}
-  #         #   client-secret: ${GOOGLE_CLIENT_SECRET}
-  #         #   scope: profile, email
-  #     resourceserver:
-  #       jwt:
-  #         # 自前の認可サーバーが稼働したら issuer-uri を設定する
-  #         issuer-uri: ${AUTH_SERVER_ISSUER_URI}
+  security:
+    oauth2:
+      client:
+        registration:
+          # 例: Google/GitHub 等でログインを実装する際に有効化
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: profile, email
+          github:
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
+            scope: read:user, user:email
 
 server:
   port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+
 
 management:
   endpoints:
@@ -50,7 +53,7 @@ management:
     health:
       show-details: when-authorized
 
-logging:
-  level:
-    org.springframework.security: INFO
-    org.hibernate.SQL: DEBUG
+app:
+  security:
+    frontend-url: ${APP_SECURITY_PUBLIC_URL:http://localhost:3000}
+    pending-registration-ttl: ${PENDING_REGISTRATION_TTL:30m}

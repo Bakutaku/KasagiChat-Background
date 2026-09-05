@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    # 本番環境でローカルDBや既定パスワードへ誤接続しないよう、値を必須にする。
+    url: jdbc:postgresql://${POSTGRESQL_HOSTNAME}:${POSTGRES_PORT}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+  jpa:
+    hibernate:
+      # 本番スキーマはマイグレーション等で事前に構築し、起動時は検証だけを行う。
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  session:
+    jdbc:
+      # SPRING_SESSIONテーブルも本番環境では事前に構築する。
+      initialize-schema: never
+
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    org.springframework.security: WARN
+    org.hibernate.SQL: "OFF"
+
+app:
+  security:
+    # 本番環境でlocalhostへリダイレクトしないよう、公開URLを必須にする。
+    frontend-url: ${APP_SECURITY_PUBLIC_URL}
