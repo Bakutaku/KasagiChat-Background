@@ -29,9 +29,6 @@ import com.kasagichat.api.security.handler.OAuthLoginSuccessHandler;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-	/**
-	 * セキュリティ関連のアプリケーション設定。
-	 */
 	private final SecurityProperties securityProperties;
 
 	/**
