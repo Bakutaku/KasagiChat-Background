@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.kasagichat.api.security.exception.TempException;
+import com.kasagichat.api.security.exception.TermsAgreementRequiredException;
 import com.kasagichat.api.security.model.Terms;
 import com.kasagichat.api.security.model.UserTermsAgreement;
 import com.kasagichat.api.security.model.Users;
@@ -16,12 +16,14 @@ import com.kasagichat.api.security.repository.TermsRepository;
 import com.kasagichat.api.security.repository.UserTermsAgreementRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 規約同意
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TermsService {
 
     private final TermsRepository termsRepository;
@@ -52,9 +54,12 @@ public class TermsService {
             .map(terms -> terms.getId())
             .collect(Collectors.toUnmodifiableSet());
         
-        if (latestTermsIds.isEmpty() || agreedTermsIds == null || !agreedTermsIds.containsAll(latestTermsIds)) {
-            // TODO 規約同意失敗
-            throw new TempException();
+        if (latestTermsIds.isEmpty()) {
+            log.warn("有効な最新規約が存在しないため、ユーザー登録を拒否しました");
+            throw new TermsAgreementRequiredException();
+        }
+        if (agreedTermsIds == null || !agreedTermsIds.containsAll(latestTermsIds)) {
+            throw new TermsAgreementRequiredException();
         }
         return latestTerms;
     }

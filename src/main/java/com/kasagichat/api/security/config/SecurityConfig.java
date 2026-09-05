@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
@@ -36,11 +37,23 @@ public class SecurityConfig {
         return new HttpSessionSecurityContextRepository();
     }
 
+    @Bean
+    AuthenticationFailureHandler oauthAuthenticationFailureHandler() {
+        return new SimpleUrlAuthenticationFailureHandler(
+                securityProperties.frontendUrl() + "/auth/error"
+        );
+    }
+
     /**
      * ブラウザからのOAuth/OIDCログインとセッション認証を扱う。
      */
     @Bean
-    SecurityFilterChain oidcFilterChain(HttpSecurity http,OAuthLoginSuccessHandler successHandler,SecurityContextRepository securityContextRepository) throws Exception {
+    SecurityFilterChain oidcFilterChain(
+            HttpSecurity http,
+            OAuthLoginSuccessHandler successHandler,
+            SecurityContextRepository securityContextRepository,
+            AuthenticationFailureHandler authenticationFailureHandler
+    ) throws Exception {
         
 		http
             .securityContext(security -> security
@@ -78,11 +91,7 @@ public class SecurityConfig {
             )
             .oauth2Login(oauth -> oauth
                 .successHandler(successHandler)
-                .failureHandler(
-                    new SimpleUrlAuthenticationFailureHandler(
-                        securityProperties.frontendUrl() + "/auth/error"
-                    )
-                )
+                .failureHandler(authenticationFailureHandler)
             )
             .logout(logout -> logout
                 .logoutUrl("/api/logout")

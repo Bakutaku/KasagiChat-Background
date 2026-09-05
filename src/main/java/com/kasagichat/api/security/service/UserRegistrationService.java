@@ -5,13 +5,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import com.kasagichat.api.security.controller.dto.request.UserRegistrationRequest;
-import com.kasagichat.api.security.exception.TempException;
+import com.kasagichat.api.security.exception.PendingRegistrationExpiredException;
+import com.kasagichat.api.security.exception.PendingRegistrationNotFoundException;
+import com.kasagichat.api.security.exception.UserAlreadyRegisteredException;
 import com.kasagichat.api.security.model.PendingUsers;
 import com.kasagichat.api.security.model.Terms;
 import com.kasagichat.api.security.model.UserAuth;
@@ -39,7 +39,7 @@ public class UserRegistrationService {
     public Users registration(Long pendingUserId, UserRegistrationRequest request) {
         // 仮登録ユーザー取得
         PendingUsers pendingUser = pendingUsersRepository.findById(pendingUserId)
-            .orElseThrow(() -> new TempException());    // TODO 仮登録情報がない場合
+            .orElseThrow(PendingRegistrationNotFoundException::new);
 
         // 作成可否
         List<Terms> consentTerms = userRegistrationCheck(pendingUser, request.agreedTermsIds());
@@ -72,19 +72,14 @@ public class UserRegistrationService {
      *
      * @param pendingUserId サーバーセッション内のPrincipalから取得した仮登録ID
      * @return 有効な仮登録情報
-     * @throws ResponseStatusException 仮登録情報が存在しない、または期限切れの場合
+     * @throws PendingRegistrationNotFoundException 仮登録情報が存在しない場合
+     * @throws PendingRegistrationExpiredException 仮登録情報が期限切れの場合
      */
     public PendingUsers getPendingUsers(Long pendingUserId) {
         PendingUsers pendingUser = pendingUsersRepository.findById(pendingUserId)
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.UNAUTHORIZED,
-                "仮登録情報が存在しません"
-            ));
+            .orElseThrow(PendingRegistrationNotFoundException::new);
         if (!pendingUser.getExpiresAt().isAfter(Instant.now())) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "仮登録の有効期限が切れています"
-            );
+            throw new PendingRegistrationExpiredException();
         }
         return pendingUser;
     }
@@ -126,8 +121,7 @@ public class UserRegistrationService {
     private List<Terms> userRegistrationCheck(PendingUsers pendingUser,Set<Long> agreedTermsIds) {
         // 仮登録の有効期限確認
         if (!pendingUser.getExpiresAt().isAfter(Instant.now())) {
-            // TODO 有効期限が切れている場合
-            throw new TempException();
+            throw new PendingRegistrationExpiredException();
         }
 
         // 二重登録防止のため既存登録がないか確認する
@@ -135,8 +129,7 @@ public class UserRegistrationService {
             pendingUser.getProvider(),
             pendingUser.getSubject()
         ).isPresent()) {
-            // TODO すでに登録済みユーザーの場合
-            throw new TempException();
+            throw new UserAlreadyRegisteredException();
         }
 
         // 同意チェック & 同意対象返却
