@@ -39,3 +39,6 @@ out/
 
 ### Local devContainer ###
 .devcontainer/local*
+
+.env
+.env.local
