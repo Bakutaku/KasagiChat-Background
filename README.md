@@ -127,6 +127,7 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 | `GET` | `/api/auth/csrf` | 不要 | CSRFトークンを取得 |
 | `GET` | `/api/terms/required` | 不要 | 現在有効な最新規約を取得 |
 | `GET` | `/api/registrations/me` | 仮登録 | 現在の仮登録ユーザー情報を取得 |
+| `GET` | `/api/user/me` | 登録済み | 現在ログイン中のユーザー情報を取得 |
 | `POST` | `/api/registrations/complete` | 仮登録 | 規約へ同意して本登録を完了 |
 | `POST` | `/api/logout` | セッション | ログアウト |
 | `GET` | `/actuator/health` | 不要 | ヘルスチェック |
@@ -224,6 +225,26 @@ GET /api/registrations/me
 
 OAuthから表示名を取得できない場合は `New User`、51文字以上の場合は先頭50文字が仮登録時の候補になります。`avatarUrl` は `null` の場合があります。
 
+### 現在のユーザー取得
+
+```http
+GET /api/user/me
+```
+
+`ROLE_USER` が必要です。サーバーセッションに保存された認証主体からユーザーを特定するため、リクエストパラメーターは不要です。
+
+レスポンス例:
+
+```json
+{
+  "publicId": "d2719db8-5c4d-42e7-ae24-9a94d8d06b12",
+  "displayName": "Kasagi User",
+  "avatarUrl": "https://example.com/avatar.png"
+}
+```
+
+セッションが参照するユーザーが削除済みまたは存在しない場合は、`USER_NOT_FOUND`（`404 Not Found`）を返します。
+
 ### 本登録完了
 
 ```http
@@ -300,6 +321,7 @@ GET /actuator/health
 | `401 Unauthorized` | `PENDING_REGISTRATION_NOT_FOUND` | セッションが参照する仮登録情報が存在しない |
 | `401 Unauthorized` | `PENDING_REGISTRATION_EXPIRED` | 仮登録の有効期限が切れている |
 | `409 Conflict` | `USER_ALREADY_REGISTERED` | 同じOAuthアカウントがすでに登録済み |
+| `404 Not Found` | `USER_NOT_FOUND` | セッションが参照する登録済みユーザーが存在しない |
 
 入力バリデーション違反、CSRFエラー、未認証、権限不足など、Spring SecurityまたはSpring MVCが直接返すエラーは上記のアプリケーション固有形式とは異なる場合があります。
 

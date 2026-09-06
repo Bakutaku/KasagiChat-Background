@@ -21,6 +21,7 @@ import com.kasagichat.api.security.exception.PendingRegistrationExpiredException
 import com.kasagichat.api.security.exception.PendingRegistrationNotFoundException;
 import com.kasagichat.api.security.exception.TermsAgreementRequiredException;
 import com.kasagichat.api.security.exception.UserAlreadyRegisteredException;
+import com.kasagichat.api.security.exception.UserNotFoundException;
 
 class ApiExceptionHandlerTest {
 
@@ -73,6 +74,13 @@ class ApiExceptionHandlerTest {
                         "USER_ALREADY_REGISTERED"
                 ),
                 Arguments.of(
+                        "user-not-found",
+                        404,
+                        "Not Found",
+                        "ユーザーが見つかりませんでした。",
+                        "USER_NOT_FOUND"
+                ),
+                Arguments.of(
                         "terms",
                         400,
                         "Bad Request",
@@ -91,6 +99,7 @@ class ApiExceptionHandlerTest {
                 case "not-found" -> new PendingRegistrationNotFoundException();
                 case "expired" -> new PendingRegistrationExpiredException();
                 case "registered" -> new UserAlreadyRegisteredException();
+                case "user-not-found" -> new UserNotFoundException();
                 case "terms" -> new TermsAgreementRequiredException();
                 default -> new IllegalArgumentException("unknown test type");
             };
