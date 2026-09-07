@@ -124,7 +124,7 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 | --- | --- | --- | --- |
 | `GET` | `/oauth2/authorization/google` | 不要 | Google OAuthログインを開始 |
 | `GET` | `/login/oauth2/code/google` | 不要 | Google OAuthコールバック（Spring Securityが処理） |
-| `GET` | `/api/auth/csrf` | 不要 | CSRFトークンを取得 |
+| `GET` | `/api/auth/csrf` | 不要 | CSRF Cookieを初期化 |
 | `GET` | `/api/terms/required` | 不要 | 現在有効な最新規約を取得 |
 | `GET` | `/api/registrations/me` | 仮登録 | 現在の仮登録ユーザー情報を取得 |
 | `GET` | `/api/user/me` | 登録済み | 現在ログイン中のユーザー情報を取得 |
@@ -146,28 +146,18 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 
 ## エンドポイント詳細
 
-### CSRFトークン取得
+### CSRF Cookieの初期化
 
 ```http
 GET /api/auth/csrf
 ```
 
-認証は不要です。
+認証は不要です。`204 No Content` とともに、JavaScriptから読み取り可能な `XSRF-TOKEN` Cookieを設定します。
 
-レスポンス例:
-
-```json
-{
-  "parameterName": "_csrf",
-  "headerName": "X-XSRF-TOKEN",
-  "token": "csrf-token-value"
-}
-```
-
-`POST /api/registrations/complete` や `POST /api/logout` では、このトークンと同じセッションCookieを送信します。
+`POST /api/registrations/complete` や `POST /api/logout` では、同じセッションCookieを送信した上で、`XSRF-TOKEN` Cookieの値を `X-XSRF-TOKEN` ヘッダーへ設定します。
 
 ```http
-X-XSRF-TOKEN: csrf-token-value
+X-XSRF-TOKEN: <XSRF-TOKEN Cookieの値>
 ```
 
 ### 必須規約取得
@@ -250,7 +240,7 @@ GET /api/user/me
 ```http
 POST /api/registrations/complete
 Content-Type: application/json
-X-XSRF-TOKEN: csrf-token-value
+X-XSRF-TOKEN: <XSRF-TOKEN Cookieの値>
 ```
 
 `ROLE_PENDING_REGISTRATION` とCSRFトークンが必要です。
@@ -287,7 +277,7 @@ X-XSRF-TOKEN: csrf-token-value
 
 ```http
 POST /api/logout
-X-XSRF-TOKEN: csrf-token-value
+X-XSRF-TOKEN: <XSRF-TOKEN Cookieの値>
 ```
 
 成功時は `200 OK` を返し、HTTPセッションを無効化して `SESSION` と `JSESSIONID` Cookieを削除します。

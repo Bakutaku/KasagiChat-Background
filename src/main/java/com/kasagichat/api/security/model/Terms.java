@@ -65,8 +65,7 @@ public class Terms extends BaseTimeEntity {
     /**
      * ユーザーへ表示する規約の本文。
      */
-    @Lob
-    @Column(nullable = false, updatable = false)
+    @Column(nullable = false, updatable = false, columnDefinition = "TEXT")
     private String content;
 
     /**

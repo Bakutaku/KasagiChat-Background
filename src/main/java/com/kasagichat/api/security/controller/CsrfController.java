@@ -1,26 +1,30 @@
 package com.kasagichat.api.security.controller;
 
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 
 /**
- * 認証に必要なCSRFトークンを提供するController。
+ * CSRF Cookieを初期化するController。
  */
-@RestController 
-@RequestMapping ("/api/auth")
+@RestController
+@RequestMapping("/api/auth")
 public class CsrfController {
     
     /**
-     * 現在のリクエストに対応するCSRFトークンを取得する。
+     * CSRFトークンを生成し、Cookieへ保存する。
      *
-     * @param csrfToken Spring Securityが生成したCSRFトークン
-     * @return 現在のCSRFトークン
+     * <p>クライアントはレスポンスの {@code XSRF-TOKEN} Cookieの値を
+     * {@code X-XSRF-TOKEN} ヘッダーへ設定して、状態を変更するリクエストを送信する。</p>
+     *
+     * @param csrfToken Cookie生成をトリガーするSpring SecurityのCSRFトークン
+     * @return コンテンツなしのレスポンス
      */
     @GetMapping("/csrf")
-    public CsrfToken csrf(CsrfToken csrfToken) {
-        return csrfToken;
+    public ResponseEntity<Void> csrf(CsrfToken csrfToken) {
+        return ResponseEntity.noContent().build();
     }
 }
