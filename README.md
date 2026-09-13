@@ -72,7 +72,7 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 ./gradlew bootRun
 ```
 
-`prod` では起動前に、JPAエンティティに対応するテーブルと `SPRING_SESSION` テーブルを構築しておく必要があります。
+`prod` では起動前に、JPAエンティティに対応するテーブルと `SPRING_SESSION` テーブルを構築しておく必要があります。マイグレーションツール（Flyway）の導入は今後の課題です。
 
 Google OAuth側には、次のリダイレクトURIを登録してください。
 
@@ -94,7 +94,14 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 ./gradlew test
 ```
 
-`debug` では起動時にHibernateがテーブルを作成・更新し、Spring Sessionのテーブルも初期化します。本登録には、現在有効な規約データがデータベースに1件以上必要です。規約データが存在しない場合、本登録は `TERMS_AGREEMENT_REQUIRED` で拒否されます。
+`debug` では起動時にHibernateがテーブルを作成・更新し、Spring Sessionのテーブルも初期化します。また、次のデータが空の場合は開発用の値を自動で作成します。
+
+- 規約（利用規約・プライバシーポリシー）
+- マスタ（レベル曲線、EXPルール、話題カテゴリ、会話の冒頭、カウンター種別、アイテム、実績定義）の仮の値
+- デモ用の合言葉 `HOSHI26`
+- サンプルNPC3体が参加する常設デモイベント（招待コード `DEMO2026`）
+
+本登録には、現在有効な規約データがデータベースに1件以上必要です。規約データが存在しない場合、本登録は `TERMS_AGREEMENT_REQUIRED` で拒否されます。
 
 ## API共通仕様
 
@@ -320,3 +327,220 @@ GET /actuator/health
 - `/api/terms/required` を除く `/api/**` は、原則として登録済みユーザー権限が必要です。仮登録ユーザーには `/api/registrations/**` だけが許可されます。
 - 規約は `effectiveAt` が現在時刻以前のものだけが有効です。本登録時には規約種別ごとの最新規約すべてへの同意が必要です。
 - `debug` ではDDL更新とSQLログを有効にし、`prod` ではスキーマ検証のみを行います。本番スキーマはマイグレーションなどで管理してください。
+
+## 実装予定のAPI（設計）
+
+KasagiChat本体リポジトリの `requirements.md`（2026-09-13改訂）に基づく設計です。未実装のため、実装時に詳細を確定し、上記の「エンドポイント一覧」「エンドポイント詳細」へ移します。
+
+### 共通方針
+
+- 特記がないものは `ROLE_USER` が必要です。変更系リクエストにはCSRFヘッダーが必要です。
+- 認可: 自分のデータのみ操作できます。イベントは参加者のみ閲覧でき、カードは受取人のみ開封できます。
+- ID: 会話・イベント・カードはUUIDをパスに使用し、連番を公開しません。
+- エラー: 既存と同じProblem Details形式に `code` を付けて返します。
+- LLMを呼び出すのは、メッセージ送信・振り返り・カード開封・APIキー検証の4つのみです。いずれも明示的なユーザー操作で呼ばれ、応答は一括で返します（SSEなし）。タイムアウトは60秒で、自動リトライは行いません（振り返りのJSONパース失敗のみ1回だけ再試行）。
+- 優先度: M=Must、S=Should、C=Could
+
+### 既存APIの変更
+
+| 優先度 | Method | Path | 変更内容 |
+| --- | --- | --- | --- |
+| M | `GET` | `/api/user/me` | レスポンスに `onboarding: { credentialConfigured, npcCreated, npcBorn }` を追加。フロントエンドが初回フロー（APIキー設定 → NPC誕生）の遷移先を決めるために使用 |
+
+### 設定（APIキー・デモキー）
+
+| 優先度 | Method | Path | 概要 |
+| --- | --- | --- | --- |
+| M | `GET` | `/api/credentials` | 現在の設定。プロバイダ、マスク済みキー、DEMOの場合はデモ残り回数 |
+| M | `PUT` | `/api/credentials` | 登録・変更。`provider` によって入力を切り替える |
+| M | `DELETE` | `/api/credentials` | 削除 |
+
+`PUT /api/credentials` のリクエスト例:
+
+```json
+{ "provider": "OPENAI", "apiKey": "sk-..." }
+```
+
+```json
+{ "provider": "DEMO", "passphrase": "HOSHI26" }
+```
+
+- `OPENAI` / `ANTHROPIC`: 保存前にモデル一覧取得などで有効性を1回検証します。無効な場合は `INVALID_API_KEY` を返します。キーは暗号化して保存します。
+- `DEMO`: 合言葉を `demo_passphrases` と照合します。一致しない場合は `INVALID_PASSPHRASE` を返します。呼び出し回数はアカウント単位で数えます。
+- OpenAI互換エンドポイント（base URL指定）は運営設定のみとし、APIからは指定できません（SSRF対策）。
+
+### NPC・プロフィール帳
+
+NPCの見た目は固定プリセットです。プリセット一覧APIは設けず、フロントエンドとサーバーで同じプリセットIDを定義します（サーバーはenumで検証）。
+
+| 優先度 | Method | Path | 概要 |
+| --- | --- | --- | --- |
+| M | `POST` | `/api/npc` | `{ presetId, name }` で未誕生状態のNPCを作成。誕生会話の振り返り成功で誕生済みになる |
+| M | `GET` | `/api/npc` | 名前、プリセットID、レベル、EXP、次レベルまでの必要EXP、人格文書、口調、口調反映ON/OFF、統計 |
+| M | `PATCH` | `/api/npc` | `{ profile?, speechStyle?, speechStyleEnabled? }`。文字数上限のみ検証 |
+| M | `GET` | `/api/npc/topics` | 話題一覧。カテゴリと品物画像を含む（思い出の品はここから導出） |
+| M | `PATCH` | `/api/npc/topics/{id}` | `{ public }` で公開/非公開を切り替え |
+| M | `DELETE` | `/api/npc/topics/{id}` | 話題を削除。対応する思い出の品も表示されなくなる |
+
+口調は発言の引用ではなく、振り返り時にLLMが更新する文章（`speechStyle`）として持ちます。
+
+### 成長演出・実績（優先度低）
+
+| 優先度 | Method | Path | 概要 |
+| --- | --- | --- | --- |
+| S | `GET` | `/api/growth-events?unread=true` | 実績・成長の通知ログ（未読分） |
+| S | `POST` | `/api/growth-events/read` | 一括既読 |
+| S | `GET` | `/api/achievements?claimed=false` | 未受取の報酬箱 |
+| S | `POST` | `/api/achievements/{id}/claim` | 報酬を受け取り、`unlocked_items` へ反映 |
+
+### 会話（NPC誕生・練習・今日のひとこと）
+
+会話は次の順に呼び出します。
+
+```text
+1. POST /api/conversations                会話を開始（LLMは呼ばない）
+2. POST /api/conversations/{id}/messages  発言するたびに呼ぶ（LLMを1回呼ぶ）
+3. POST /api/conversations/{id}/review    「会話を終える」で呼ぶ（振り返り。LLMを1回呼ぶ）
+```
+
+| 優先度 | Method | Path | 概要 |
+| --- | --- | --- | --- |
+| M | `GET` | `/api/daily-question` | 今日のひとことの質問。ない場合は `204 No Content` |
+| M | `POST` | `/api/conversations` | 会話を開始、または途中の会話を再開 |
+| M | `GET` | `/api/conversations?status=UNREVIEWED` | 未振り返りの会話一覧（家に表示） |
+| M | `GET` | `/api/conversations/{id}` | メッセージ、状態、往復数、`canFinish` |
+| M | `POST` | `/api/conversations/{id}/messages` | 発言を送り、NPCの応答を受け取る |
+| M | `POST` | `/api/conversations/{id}/review` | 会話を終えて振り返りを実行（リトライも同じ） |
+| C | `GET` | `/api/conversations` | 会話履歴 |
+
+#### 会話の開始
+
+リクエスト例:
+
+```json
+{ "type": "PRACTICE", "scene": "CAFE" }
+```
+
+- `type`: `BIRTH`（NPC誕生）/ `PRACTICE`（練習）/ `DAILY`（今日のひとこと）
+- `scene`: `PRACTICE` のときのみ指定（`CAFE` / `LOBBY` / `OFFICE`）
+
+レスポンス例:
+
+```json
+{
+  "id": "0b8f6c1e-2d4a-4f7b-9c3e-5a1d2e3f4a5b",
+  "type": "PRACTICE",
+  "scene": "CAFE",
+  "status": "IN_PROGRESS",
+  "turn": 0,
+  "canFinish": false,
+  "messages": [
+    { "role": "ASSISTANT", "text": "今日は雨ですね。雨の日はどう過ごしますか？" }
+  ]
+}
+```
+
+- 同じ種別・シーンに未振り返りの会話がある場合は、その会話を `200 OK` で返します（再開）。ない場合は新規作成して `201 Created` を返します。
+- 冒頭の台詞はLLMを使わずに用意し、1件目の `ASSISTANT` メッセージとして保存します。
+  - `BIRTH` / `PRACTICE`: マスタ `conversation_openings` から抽選します。同じユーザーの直前の会話と同じ行は避けます。行の `theme` はシステムプロンプトへ差し込みます。
+  - `DAILY`: `daily_questions` の未消化の質問を使います。
+- NPCが誕生していない状態で `PRACTICE` / `DAILY` を開始した場合、または誕生済みで `BIRTH` を開始した場合は `NPC_STATE_INVALID` を返します。
+
+#### メッセージ送信
+
+リクエスト例:
+
+```json
+{ "text": "今日は本を読みながら、ゆっくり過ごしました。", "expectedTurn": 1 }
+```
+
+レスポンス例:
+
+```json
+{
+  "turn": 2,
+  "reply": { "role": "ASSISTANT", "text": "いいですね。どんな本を読んでいたんですか？" },
+  "canFinish": true,
+  "finished": false
+}
+```
+
+- `text` は1〜2000文字です。
+- `expectedTurn` が現在の往復数と一致しない場合は `TURN_MISMATCH` を返します（二重送信対策）。
+- LLM呼び出しに失敗した場合は `LLM_CALL_FAILED` を返し、ユーザーの発言も保存しません。フロントエンドは同じ `text` と `expectedTurn` で再送します。
+- `BIRTH` は6往復目の応答に締めの指示を注入し、`finished: true` を返します。以降の送信は `CONVERSATION_FINISHED` を返します。
+
+#### 振り返り
+
+レスポンス例:
+
+```json
+{
+  "feedback": "自分の言葉で、気持ちを伝えられたね。",
+  "expGained": 40,
+  "level": 2,
+  "leveledUp": true,
+  "newTopics": [{ "id": 12, "name": "読書", "public": false }]
+}
+```
+
+- `BIRTH` は3往復以上、それ以外は1往復以上で実行できます。不足している場合は `CONVERSATION_TOO_SHORT` を返します。
+- 振り返り済みの場合は保存済みの結果を返し、EXPなどを二重に反映しません。
+- LLM呼び出しに失敗した場合は `LLM_CALL_FAILED` を返し、会話は未振り返りのまま残ります。同じエンドポイントで再実行できます。
+- プロファイル・口調・話題・EXPは振り返り成功時にまとめて反映します。次回の今日のひとことの質問もここで生成します。
+
+### イベント・招待
+
+| 優先度 | Method | Path | 概要 |
+| --- | --- | --- | --- |
+| M | `POST` | `/api/events` | `{ title, description, startDate, endDate, venueTemplate }` でイベントを作成。招待コードを発行し、作成者は自動で参加 |
+| M | `GET` | `/api/events` | 参加中・作成したイベントの一覧（開催前/開催中/終了のフェーズ付き） |
+| M | `GET` | `/api/events/{id}` | イベント詳細（参加者のみ） |
+| M | `GET` | `/api/events/{id}/participants` | 会場の賑わい表示用の参加者一覧（名前とプリセットIDのみ） |
+| M | `GET` | `/api/invitations/{code}` | 参加ページ用のイベント概要 |
+| M | `POST` | `/api/invitations/{code}/join` | 参加してマッチングを実行。参加済みでも成功扱い |
+| M | `DELETE` | `/api/events/{id}/participants/me` | 退出 |
+| M | `DELETE` | `/api/events/{id}` | 参加者が作成者のみの場合に限り削除 |
+| S | `POST` | `/api/events/{id}/archive` | 作成者による早期終了 |
+
+- 招待コードは6〜8文字の英数字です。QRコードはフロントエンドで生成します。
+- `/api/invitations/**` もログイン後のみ利用できます。
+- 常設デモイベントはシードデータで用意します。専用APIは設けません。
+
+### 出会いカード
+
+| 優先度 | Method | Path | 概要 |
+| --- | --- | --- | --- |
+| M | `GET` | `/api/events/{id}/cards` | そのイベントでの自分宛てカード。会場ページを開いたときに1回だけ呼ぶ（ポーリングなし） |
+| M | `GET` | `/api/cards` | 自分宛てカードの全件（スマートフォンのカード一覧用） |
+| M | `GET` | `/api/cards/{id}` | カード詳細。開封済みの場合は保存済みの報告を含む |
+| M | `POST` | `/api/cards/{id}/open` | LLMで会話報告を生成して保存。開封済みの場合は保存済みの報告を返す |
+
+### その他
+
+| 優先度 | Method | Path | 概要 |
+| --- | --- | --- | --- |
+| S | `GET` | `/api/usage/summary` | コスト概算の表示 |
+
+- `/actuator/health` はDBのヘルスチェックを有効にし、Supabaseのキープアライブにも使用します。
+- 管理用APIは作りません。マスタ（`level_curves`、`exp_rules`、`achievement_defs`、`counter_defs`、`topic_categories`、`items`、`demo_passphrases`、`conversation_openings`）はSQLまたはシードデータで編集します。
+
+### 追加予定のエラーコード
+
+| HTTP status | code | 発生条件 |
+| --- | --- | --- |
+| `400 Bad Request` | `INVALID_API_KEY` | APIキーの有効性検証に失敗した |
+| `400 Bad Request` | `INVALID_PASSPHRASE` | デモの合言葉が一致しない、または無効化されている |
+| `400 Bad Request` | `CONVERSATION_TOO_SHORT` | 振り返りに必要な往復数に達していない |
+| `404 Not Found` | `CONVERSATION_NOT_FOUND` / `EVENT_NOT_FOUND` / `CARD_NOT_FOUND` | 対象が存在しない、または閲覧権限がない |
+| `409 Conflict` | `NPC_STATE_INVALID` | NPCの誕生状態と操作が合わない |
+| `409 Conflict` | `TURN_MISMATCH` | `expectedTurn` が現在の往復数と一致しない |
+| `409 Conflict` | `CONVERSATION_FINISHED` | 終了済みの会話にメッセージを送った |
+| `409 Conflict` | `NPC_NOT_BORN` | NPC誕生前にイベントへ参加しようとした |
+| `409 Conflict` | `EVENT_ENDED` | 終了したイベントに参加しようとした |
+| `409 Conflict` | `EVENT_NOT_STARTED` | 開催前のイベントのカードを開封しようとした |
+| `409 Conflict` | `EVENT_HAS_PARTICIPANTS` | 作成者以外の参加者がいるイベントを削除しようとした |
+| `429 Too Many Requests` | `DEMO_LIMIT_EXCEEDED` | デモの呼び出し回数上限に達した |
+| `502 Bad Gateway` | `LLM_CALL_FAILED` | LLMプロバイダの呼び出しに失敗した、またはタイムアウトした |
+
+閲覧権限がない場合も `404 Not Found` を返し、対象の存在を知られないようにします。
