@@ -38,4 +38,12 @@ public interface CardRepository extends JpaRepository<Card, Long> {
      * @return カードの一覧
      */
     List<Card> findByRecipientIdOrderByCreatedAtDesc(Long recipientId);
+
+    /**
+     * 自分宛てのカードのうち、開封済みのものを数える。利用状況の概算に使う。
+     *
+     * @param recipientId 受取人の内部ID
+     * @return 開封済みのカード数
+     */
+    long countByRecipientIdAndOpenedAtIsNotNull(Long recipientId);
 }

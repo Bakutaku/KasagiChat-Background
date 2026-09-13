@@ -1,7 +1,9 @@
 package com.kasagichat.api.npc.repository;
 
+import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.kasagichat.api.npc.model.AchievementCounter;
@@ -19,4 +21,13 @@ public interface AchievementCounterRepository extends JpaRepository<AchievementC
      * @return 該当するカウンター。まだ集計していない場合は空
      */
     Optional<AchievementCounter> findByUserIdAndCounterDefCode(Long userId, String counterCode);
+
+    /**
+     * ユーザーのカウンターをすべて取得する。統計表示のため、カウンター種別も一緒に取得する。
+     *
+     * @param userId ユーザーの内部ID
+     * @return カウンターの一覧
+     */
+    @EntityGraph(attributePaths = "counterDef")
+    List<AchievementCounter> findByUserId(Long userId);
 }

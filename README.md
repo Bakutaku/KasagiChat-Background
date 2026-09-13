@@ -37,6 +37,7 @@ Dev Containerを使う場合は、同梱のCompose設定によってJava開発�
 | `SERVER_PORT` | いいえ | `8080` | APIサーバーのポート |
 | `APP_SECURITY_PUBLIC_URL` | `prod`では必須 | `http://localhost:3000` | OAuth完了後のフロントエンド遷移先 |
 | `PENDING_REGISTRATION_TTL` | いいえ | `30m` | 仮登録の有効期間（SpringのDuration形式） |
+| `USAGE_ESTIMATED_COST_PER_CALL_USD` | いいえ | `0.002` | 利用状況の表示に使う、LLM呼び出し1回あたりの概算コスト（USD） |
 
 ### 実行環境の切り替え
 
@@ -134,7 +135,18 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 | `GET` | `/api/auth/csrf` | 不要 | CSRF Cookieを初期化 |
 | `GET` | `/api/terms/required` | 不要 | 現在有効な最新規約を取得 |
 | `GET` | `/api/registrations/me` | 仮登録 | 現在の仮登録ユーザー情報を取得 |
-| `GET` | `/api/user/me` | 登録済み | 現在ログイン中のユーザー情報を取得 |
+| `GET` | `/api/user/me` | 登録済み | 現在ログイン中のユーザー情報と初回フローの進み具合を取得 |
+| `POST` | `/api/npc` | 登録済み | 未誕生状態のNPCを作成 |
+| `GET` | `/api/npc` | 登録済み | NPCのプロフィール帳を取得 |
+| `PATCH` | `/api/npc` | 登録済み | 人格文書・口調・口調反映の設定を更新 |
+| `GET` | `/api/npc/topics` | 登録済み | NPCが覚えた話題の一覧を取得 |
+| `PATCH` | `/api/npc/topics/{id}` | 登録済み | 話題の公開/非公開を切り替え |
+| `DELETE` | `/api/npc/topics/{id}` | 登録済み | 話題を削除 |
+| `GET` | `/api/growth-events` | 登録済み | 成長演出・実績達成の通知を取得 |
+| `POST` | `/api/growth-events/read` | 登録済み | 未読の通知を一括既読 |
+| `GET` | `/api/achievements` | 登録済み | 実績の一覧を取得 |
+| `POST` | `/api/achievements/{id}/claim` | 登録済み | 実績の報酬を受け取る |
+| `GET` | `/api/usage/summary` | 登録済み | LLMの利用状況とコストの概算を取得 |
 | `POST` | `/api/registrations/complete` | 仮登録 | 規約へ同意して本登録を完了 |
 | `POST` | `/api/logout` | セッション | ログアウト |
 | `GET` | `/actuator/health` | 不要 | ヘルスチェック |
@@ -236,9 +248,20 @@ GET /api/user/me
 {
   "publicId": "d2719db8-5c4d-42e7-ae24-9a94d8d06b12",
   "displayName": "Kasagi User",
-  "avatarUrl": "https://example.com/avatar.png"
+  "avatarUrl": "https://example.com/avatar.png",
+  "onboarding": {
+    "credentialConfigured": false,
+    "npcCreated": true,
+    "npcBorn": false
+  }
 }
 ```
+
+`onboarding` は、フロントエンドが初回フロー（APIキー設定 → NPC誕生）の遷移先を決めるために使います。
+
+- `credentialConfigured`: APIキーまたはデモの設定が済んでいるか（設定APIは未実装のため、現在は常に `false`）
+- `npcCreated`: NPCを作成済みか
+- `npcBorn`: NPCが誕生済みか（誕生会話の振り返りが成功したか）
 
 セッションが参照するユーザーが削除済みまたは存在しない場合は、`USER_NOT_FOUND`（`404 Not Found`）を返します。
 
@@ -289,6 +312,265 @@ X-XSRF-TOKEN: <XSRF-TOKEN Cookieの値>
 
 成功時は `200 OK` を返し、HTTPセッションを無効化して `SESSION` と `JSESSIONID` Cookieを削除します。
 
+### NPCの作成
+
+```http
+POST /api/npc
+Content-Type: application/json
+X-XSRF-TOKEN: <XSRF-TOKEN Cookieの値>
+```
+
+`ROLE_USER` とCSRFトークンが必要です。未誕生状態（`bornAt` が `null`）のNPCを作成し、`201 Created` を返します。誕生会話の振り返りが成功すると誕生済みになります。NPCは1ユーザーにつき1体で、作成済みの場合は `NPC_ALREADY_EXISTS` を返します。
+
+リクエスト例:
+
+```json
+{ "presetId": "PRESET_01", "name": "ユウ" }
+```
+
+| フィールド | 型 | 必須 | 制約 |
+| --- | --- | --- | --- |
+| `presetId` | string | はい | `PRESET_01`〜`PRESET_04`（仮の値。フロントエンドのプリセットIDに合わせて差し替える） |
+| `name` | string | はい | 空文字・空白のみは不可、最大30文字。前後の空白は除去 |
+
+NPCの見た目は固定プリセットです。プリセット一覧APIは設けず、フロントエンドとサーバーで同じプリセットIDを定義します（サーバーはenumで検証）。
+
+レスポンスは「NPCの取得」と同じ形式です。
+
+### NPCの取得
+
+```http
+GET /api/npc
+```
+
+レスポンス例:
+
+```json
+{
+  "name": "ユウ",
+  "presetId": "PRESET_01",
+  "level": 2,
+  "exp": 35,
+  "nextLevelExp": 50,
+  "expToNextLevel": 15,
+  "profile": "好奇心旺盛で、新しいものを見つけると誰かに話したくなるタイプ。",
+  "speechStyle": "語尾が柔らかく「〜だよね」をよく使う。",
+  "speechStyleEnabled": true,
+  "bornAt": "2026-09-13T12:00:00Z",
+  "stats": {
+    "topicCount": 3,
+    "counters": [
+      { "code": "PRACTICE_CAFE", "name": "カフェでの練習回数", "value": 2 }
+    ]
+  }
+}
+```
+
+- `nextLevelExp` は次のレベルに必要な累計EXP、`expToNextLevel` は残りのEXPです。最大レベルの場合はどちらも `null` です。
+- `stats.counters` は実績判定用の集計カウンターです。まだ集計していない種別は含まれません。
+- NPCが未作成の場合は `NPC_NOT_FOUND` を返します（`PATCH /api/npc` と `GET /api/npc/topics` も同様）。
+
+### NPCの更新
+
+```http
+PATCH /api/npc
+Content-Type: application/json
+X-XSRF-TOKEN: <XSRF-TOKEN Cookieの値>
+```
+
+リクエスト例:
+
+```json
+{ "speechStyle": "丁寧語が基本で、やさしく相づちを打つ。", "speechStyleEnabled": false }
+```
+
+| フィールド | 型 | 必須 | 制約 |
+| --- | --- | --- | --- |
+| `profile` | string | いいえ | 最大2000文字 |
+| `speechStyle` | string | いいえ | 最大500文字 |
+| `speechStyleEnabled` | boolean | いいえ | なし |
+
+指定しない（`null` の）項目は変更しません。検証するのは文字数の上限だけです。口調は発言の引用ではなく、振り返り時にLLMが更新する文章（`speechStyle`）として持ちます。
+
+レスポンスは「NPCの取得」と同じ形式です。
+
+### 話題一覧
+
+```http
+GET /api/npc/topics
+```
+
+覚えた日時の新しい順に返します。カテゴリ付きの話題から、家に置く思い出の品を導出します。
+
+レスポンス例:
+
+```json
+[
+  {
+    "id": 12,
+    "name": "ELDEN RING",
+    "category": {
+      "code": "GAME",
+      "name": "ゲーム",
+      "displayName": "ゲーム機",
+      "itemImagePath": "/images/mementos/game.png"
+    },
+    "interest": 5,
+    "public": false,
+    "visibilityDecidedAt": null,
+    "learnedAt": "2026-09-13T12:00:00Z"
+  }
+]
+```
+
+- `category` は、どのカテゴリにも入らない場合 `null` です（本棚に置く）。
+- `visibilityDecidedAt` が `null` の話題は未確認で、非公開として扱います。
+
+### 話題の公開/非公開の切り替え
+
+```http
+PATCH /api/npc/topics/{id}
+Content-Type: application/json
+X-XSRF-TOKEN: <XSRF-TOKEN Cookieの値>
+```
+
+リクエスト例:
+
+```json
+{ "public": true }
+```
+
+`public`（boolean）は必須です。公開した話題だけが、イベントのマッチングとカード生成に使われます。更新後の話題を「話題一覧」の要素と同じ形式で返します。存在しない話題や他人の話題の場合は `TOPIC_NOT_FOUND` を返します。
+
+### 話題の削除
+
+```http
+DELETE /api/npc/topics/{id}
+X-XSRF-TOKEN: <XSRF-TOKEN Cookieの値>
+```
+
+成功時は `204 No Content` を返します。プライバシーのため物理削除とし、話題に属する思い出も一緒に削除します。対応する思い出の品も表示されなくなります。存在しない話題や他人の話題の場合は `TOPIC_NOT_FOUND` を返します。
+
+### 成長通知の取得
+
+```http
+GET /api/growth-events?unread=true
+```
+
+| パラメーター | 説明 |
+| --- | --- |
+| `unread=true` | 未読の通知を古い順にすべて返す |
+| `unread=false` または未指定 | 既読・未読を問わず、直近50件を新しい順に返す |
+
+レスポンス例:
+
+```json
+[
+  {
+    "id": 7,
+    "type": "LEVEL_UP",
+    "message": "ユウがレベル2になりました！",
+    "createdAt": "2026-09-13T12:00:00Z",
+    "readAt": null
+  }
+]
+```
+
+`type` は `LEVEL_UP`（レベルアップ）、`TOPIC_LEARNED`（新しい話題を覚えた）、`ACHIEVEMENT`（実績を達成した）のいずれかです。
+
+### 成長通知の一括既読
+
+```http
+POST /api/growth-events/read
+X-XSRF-TOKEN: <XSRF-TOKEN Cookieの値>
+```
+
+自分の未読の通知をすべて既読にし、`204 No Content` を返します。
+
+### 実績の取得
+
+```http
+GET /api/achievements?claimed=false
+```
+
+| パラメーター | 説明 |
+| --- | --- |
+| `claimed=false` | 報酬未受取の実績（カササギが届ける未開封の箱） |
+| `claimed=true` | 報酬受取済みの実績 |
+| 未指定 | すべての実績 |
+
+達成日時の新しい順に返します。
+
+レスポンス例:
+
+```json
+[
+  {
+    "id": 3,
+    "code": "FIRST_CAFE",
+    "name": "はじめてのカフェ",
+    "description": "カフェで1回練習する",
+    "achievedAt": "2026-09-13T12:00:00Z",
+    "claimedAt": null,
+    "reward": {
+      "type": "ITEM",
+      "exp": null,
+      "item": {
+        "code": "CASUAL_SHIRT",
+        "name": "カジュアルシャツ",
+        "itemType": "CLOTHES",
+        "imagePath": "/images/items/casual_shirt.png"
+      }
+    }
+  }
+]
+```
+
+`reward.type` は `ITEM`（アイテムを解禁）、`EXP`（EXPを加算）、`NONE`（報酬なし）のいずれかです。
+
+### 実績の報酬受取
+
+```http
+POST /api/achievements/{id}/claim
+X-XSRF-TOKEN: <XSRF-TOKEN Cookieの値>
+```
+
+レスポンス例:
+
+```json
+{
+  "achievement": { "id": 3, "code": "CONVERSATION_10", "claimedAt": "2026-09-13T12:05:00Z", "...": "実績の取得と同じ形式" },
+  "level": 3,
+  "leveledUp": true
+}
+```
+
+- `ITEM` は `unlocked_items` へ追加します（解禁済みの場合は何もしません）。`EXP` はNPCに加算し、レベルアップした場合は `LEVEL_UP` の通知を作成します。`NONE` は受取日時だけを記録します。
+- 受取済みの場合は報酬を反映せず、現在の状態を `200 OK` で返します。同時に呼ばれても報酬は1回だけ反映されます。
+- `level` は受取後のNPCのレベルです。NPCが未作成の場合は `null` です。
+- 存在しない実績や他人の実績の場合は `ACHIEVEMENT_NOT_FOUND`、EXP報酬の受取時にNPCが未作成の場合は `NPC_NOT_FOUND` を返します。
+
+### 利用状況の概算
+
+```http
+GET /api/usage/summary
+```
+
+レスポンス例:
+
+```json
+{
+  "provider": "OPENAI",
+  "estimatedLlmCalls": 42,
+  "estimatedCostUsd": 0.084,
+  "demo": null
+}
+```
+
+- 利用ログは保存していないため、LLMの呼び出し回数は、自分の発言数・振り返り済みの会話数・開封済みのカード数の合計から概算します。
+- `estimatedCostUsd` は、呼び出し回数 × `USAGE_ESTIMATED_COST_PER_CALL_USD`（デフォルト `0.002`）です。デモ利用の場合は運営が負担するため `0` です。
+- `provider` は、APIキー未設定の場合 `null` です。`DEMO` の場合は `demo` に `{ "callCount": 30, "callLimit": 100, "remaining": 70 }` の形で利用回数を返します。
+
 ### ヘルスチェック
 
 ```http
@@ -319,6 +601,10 @@ GET /actuator/health
 | `401 Unauthorized` | `PENDING_REGISTRATION_EXPIRED` | 仮登録の有効期限が切れている |
 | `409 Conflict` | `USER_ALREADY_REGISTERED` | 同じOAuthアカウントがすでに登録済み |
 | `404 Not Found` | `USER_NOT_FOUND` | セッションが参照する登録済みユーザーが存在しない |
+| `404 Not Found` | `NPC_NOT_FOUND` | NPCがまだ作成されていない |
+| `404 Not Found` | `TOPIC_NOT_FOUND` | 話題が存在しない、または他人の話題 |
+| `404 Not Found` | `ACHIEVEMENT_NOT_FOUND` | 実績が存在しない、または他人の実績 |
+| `409 Conflict` | `NPC_ALREADY_EXISTS` | NPCを作成済みのユーザーが、もう1体作成しようとした |
 
 入力バリデーション違反、CSRFエラー、未認証、権限不足など、Spring SecurityまたはSpring MVCが直接返すエラーは上記のアプリケーション固有形式とは異なる場合があります。
 
@@ -341,12 +627,6 @@ KasagiChat本体リポジトリの `requirements.md`（2026-09-13改訂）に基
 - LLMを呼び出すのは、メッセージ送信・振り返り・カード開封・APIキー検証の4つのみです。いずれも明示的なユーザー操作で呼ばれ、応答は一括で返します（SSEなし）。タイムアウトは60秒で、自動リトライは行いません（振り返りのJSONパース失敗のみ1回だけ再試行）。
 - 優先度: M=Must、S=Should、C=Could
 
-### 既存APIの変更
-
-| 優先度 | Method | Path | 変更内容 |
-| --- | --- | --- | --- |
-| M | `GET` | `/api/user/me` | レスポンスに `onboarding: { credentialConfigured, npcCreated, npcBorn }` を追加。フロントエンドが初回フロー（APIキー設定 → NPC誕生）の遷移先を決めるために使用 |
-
 ### 設定（APIキー・デモキー）
 
 | 優先度 | Method | Path | 概要 |
@@ -368,30 +648,6 @@ KasagiChat本体リポジトリの `requirements.md`（2026-09-13改訂）に基
 - `OPENAI` / `ANTHROPIC`: 保存前にモデル一覧取得などで有効性を1回検証します。無効な場合は `INVALID_API_KEY` を返します。キーは暗号化して保存します。
 - `DEMO`: 合言葉を `demo_passphrases` と照合します。一致しない場合は `INVALID_PASSPHRASE` を返します。呼び出し回数はアカウント単位で数えます。
 - OpenAI互換エンドポイント（base URL指定）は運営設定のみとし、APIからは指定できません（SSRF対策）。
-
-### NPC・プロフィール帳
-
-NPCの見た目は固定プリセットです。プリセット一覧APIは設けず、フロントエンドとサーバーで同じプリセットIDを定義します（サーバーはenumで検証）。
-
-| 優先度 | Method | Path | 概要 |
-| --- | --- | --- | --- |
-| M | `POST` | `/api/npc` | `{ presetId, name }` で未誕生状態のNPCを作成。誕生会話の振り返り成功で誕生済みになる |
-| M | `GET` | `/api/npc` | 名前、プリセットID、レベル、EXP、次レベルまでの必要EXP、人格文書、口調、口調反映ON/OFF、統計 |
-| M | `PATCH` | `/api/npc` | `{ profile?, speechStyle?, speechStyleEnabled? }`。文字数上限のみ検証 |
-| M | `GET` | `/api/npc/topics` | 話題一覧。カテゴリと品物画像を含む（思い出の品はここから導出） |
-| M | `PATCH` | `/api/npc/topics/{id}` | `{ public }` で公開/非公開を切り替え |
-| M | `DELETE` | `/api/npc/topics/{id}` | 話題を削除。対応する思い出の品も表示されなくなる |
-
-口調は発言の引用ではなく、振り返り時にLLMが更新する文章（`speechStyle`）として持ちます。
-
-### 成長演出・実績（優先度低）
-
-| 優先度 | Method | Path | 概要 |
-| --- | --- | --- | --- |
-| S | `GET` | `/api/growth-events?unread=true` | 実績・成長の通知ログ（未読分） |
-| S | `POST` | `/api/growth-events/read` | 一括既読 |
-| S | `GET` | `/api/achievements?claimed=false` | 未受取の報酬箱 |
-| S | `POST` | `/api/achievements/{id}/claim` | 報酬を受け取り、`unlocked_items` へ反映 |
 
 ### 会話（NPC誕生・練習・今日のひとこと）
 
@@ -517,10 +773,6 @@ NPCの見た目は固定プリセットです。プリセット一覧APIは設�
 | M | `POST` | `/api/cards/{id}/open` | LLMで会話報告を生成して保存。開封済みの場合は保存済みの報告を返す |
 
 ### その他
-
-| 優先度 | Method | Path | 概要 |
-| --- | --- | --- | --- |
-| S | `GET` | `/api/usage/summary` | コスト概算の表示 |
 
 - `/actuator/health` はDBのヘルスチェックを有効にし、Supabaseのキープアライブにも使用します。
 - 管理用APIは作りません。マスタ（`level_curves`、`exp_rules`、`achievement_defs`、`counter_defs`、`topic_categories`、`items`、`demo_passphrases`、`conversation_openings`）はSQLまたはシードデータで編集します。

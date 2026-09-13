@@ -17,6 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.kasagichat.api.npc.exception.AchievementNotFoundException;
+import com.kasagichat.api.npc.exception.NpcAlreadyExistsException;
+import com.kasagichat.api.npc.exception.NpcNotFoundException;
+import com.kasagichat.api.npc.exception.TopicNotFoundException;
 import com.kasagichat.api.security.exception.PendingRegistrationExpiredException;
 import com.kasagichat.api.security.exception.PendingRegistrationNotFoundException;
 import com.kasagichat.api.security.exception.TermsAgreementRequiredException;
@@ -86,6 +90,34 @@ class ApiExceptionHandlerTest {
                         "Bad Request",
                         "最新の必須規約への同意が必要です",
                         "TERMS_AGREEMENT_REQUIRED"
+                ),
+                Arguments.of(
+                        "npc-not-found",
+                        404,
+                        "Not Found",
+                        "NPCが見つかりませんでした。",
+                        "NPC_NOT_FOUND"
+                ),
+                Arguments.of(
+                        "npc-exists",
+                        409,
+                        "Conflict",
+                        "NPCはすでに作成されています。",
+                        "NPC_ALREADY_EXISTS"
+                ),
+                Arguments.of(
+                        "topic-not-found",
+                        404,
+                        "Not Found",
+                        "話題が見つかりませんでした。",
+                        "TOPIC_NOT_FOUND"
+                ),
+                Arguments.of(
+                        "achievement-not-found",
+                        404,
+                        "Not Found",
+                        "実績が見つかりませんでした。",
+                        "ACHIEVEMENT_NOT_FOUND"
                 )
         );
     }
@@ -101,6 +133,10 @@ class ApiExceptionHandlerTest {
                 case "registered" -> new UserAlreadyRegisteredException();
                 case "user-not-found" -> new UserNotFoundException();
                 case "terms" -> new TermsAgreementRequiredException();
+                case "npc-not-found" -> new NpcNotFoundException();
+                case "npc-exists" -> new NpcAlreadyExistsException();
+                case "topic-not-found" -> new TopicNotFoundException();
+                case "achievement-not-found" -> new AchievementNotFoundException();
                 default -> new IllegalArgumentException("unknown test type");
             };
         }

@@ -18,4 +18,13 @@ public interface UnlockedItemRepository extends JpaRepository<UnlockedItem, Long
      * @return 解禁済みアイテムの一覧
      */
     List<UnlockedItem> findByUserId(Long userId);
+
+    /**
+     * ユーザーが指定したアイテムを解禁済みかどうかを確認する。
+     *
+     * @param userId ユーザーの内部ID
+     * @param itemId アイテムの内部ID
+     * @return 解禁済みの場合はtrue
+     */
+    boolean existsByUserIdAndItemId(Long userId, Long itemId);
 }

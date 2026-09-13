@@ -26,7 +26,9 @@ public class UserController {
      */
     @GetMapping ("/me")
     public UserMeResponse me(@AuthenticationPrincipal LoginUserPrincipal principal) {
-        return UserMeResponse.from(userService.getCurrentUser(principal.userId()));
-        
+        return UserMeResponse.from(
+            userService.getCurrentUser(principal.userId()),
+            userService.getOnboarding(principal.userId())
+        );
     }
 }

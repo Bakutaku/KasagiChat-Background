@@ -57,4 +57,12 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
      * @return 直前の会話。存在しない場合は空
      */
     Optional<Conversation> findFirstByUserIdAndOpeningIsNotNullOrderByCreatedAtDesc(Long userId);
+
+    /**
+     * ユーザーの振り返り済みの会話を数える。利用状況の概算に使う。
+     *
+     * @param userId ユーザーの内部ID
+     * @return 振り返り済みの会話数
+     */
+    long countByUserIdAndReviewedAtIsNotNull(Long userId);
 }

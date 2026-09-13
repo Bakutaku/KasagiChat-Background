@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -18,9 +19,21 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import com.kasagichat.api.conversation.model.Conversation;
+import com.kasagichat.api.conversation.model.Message;
 import com.kasagichat.api.conversation.model.enums.ConversationStatus;
 import com.kasagichat.api.conversation.model.enums.ConversationType;
+import com.kasagichat.api.conversation.model.enums.MessageRole;
 import com.kasagichat.api.conversation.repository.ConversationRepository;
+import com.kasagichat.api.conversation.repository.MessageRepository;
+import com.kasagichat.api.master.model.AchievementDef;
+import com.kasagichat.api.master.model.CounterDef;
+import com.kasagichat.api.master.model.TopicCategory;
+import com.kasagichat.api.master.model.enums.RewardType;
+import com.kasagichat.api.npc.model.Achievement;
+import com.kasagichat.api.npc.model.GrowthEvent;
+import com.kasagichat.api.npc.model.enums.GrowthEventType;
+import com.kasagichat.api.npc.repository.AchievementRepository;
+import com.kasagichat.api.npc.repository.GrowthEventRepository;
 import com.kasagichat.api.event.model.Card;
 import com.kasagichat.api.event.model.Event;
 import com.kasagichat.api.event.model.enums.VenueTemplate;
@@ -73,6 +86,15 @@ class EntityMappingTest {
 
     @Autowired
     private CardRepository cardRepository;
+
+    @Autowired
+    private MessageRepository messageRepository;
+
+    @Autowired
+    private AchievementRepository achievementRepository;
+
+    @Autowired
+    private GrowthEventRepository growthEventRepository;
 
     @Test
     void savesNpcAppearanceAsJsonb() {
@@ -176,6 +198,102 @@ class EntityMappingTest {
         List<Memory> memories = memoryRepository.findByTopicIdInAndTopicPublicTopicTrue(
             List.of(publicTopic.getId(), privateTopic.getId()));
         assertThat(memories).extracting(Memory::getContent).containsExactly("新作ゲームを遊んでいる");
+    }
+
+    @Test
+    void listsTopicsWithCategoryAndCountsThem() {
+        TopicCategory category = entityManager.persist(TopicCategory.builder()
+            .code("GAME")
+            .name("ゲーム")
+            .displayName("ゲーム機")
+            .itemImagePath("/images/mementos/game.png")
+            .build());
+        Npc npc = npcRepository.save(npc(user("話題を一覧するユーザー")));
+        Topic topic = topic(npc, "ゲーム実況", true);
+        topic.setCategory(category);
+        topicRepository.save(topic);
+        flushAndClear();
+
+        List<Topic> topics = topicRepository.findByNpcIdOrderByLearnedAtDesc(npc.getId());
+        assertThat(topics).singleElement()
+            .satisfies(found -> assertThat(Hibernate.isInitialized(found.getCategory())).isTrue());
+        assertThat(topicRepository.countByNpcId(npc.getId())).isEqualTo(1L);
+    }
+
+    @Test
+    void marksAchievementClaimedOnlyOnceByOwner() {
+        Users owner = user("実績の持ち主");
+        Users other = user("他人");
+        CounterDef counter = entityManager.persist(CounterDef.builder().code("TEST_COUNTER").name("テスト").build());
+        AchievementDef def = entityManager.persist(AchievementDef.builder()
+            .code("TEST_ACHIEVEMENT")
+            .name("テスト実績")
+            .counterDef(counter)
+            .threshold(1L)
+            .rewardType(RewardType.NONE)
+            .build());
+        Achievement achievement = achievementRepository.save(Achievement.builder()
+            .user(owner)
+            .achievementDef(def)
+            .achievedAt(Instant.now())
+            .build());
+        flushAndClear();
+
+        Instant claimedAt = Instant.now();
+        assertThat(achievementRepository.markClaimed(achievement.getId(), other.getId(), claimedAt)).isZero();
+        assertThat(achievementRepository.markClaimed(achievement.getId(), owner.getId(), claimedAt)).isEqualTo(1);
+        assertThat(achievementRepository.markClaimed(achievement.getId(), owner.getId(), claimedAt)).isZero();
+
+        Achievement found = achievementRepository.findByIdAndUserId(achievement.getId(), owner.getId()).orElseThrow();
+        assertThat(found.getClaimedAt()).isNotNull();
+        assertThat(Hibernate.isInitialized(found.getAchievementDef())).isTrue();
+        assertThat(achievementRepository.findByUserIdAndClaimedAtIsNullOrderByAchievedAtDesc(owner.getId())).isEmpty();
+    }
+
+    @Test
+    void marksOnlyOwnUnreadGrowthEventsAsRead() {
+        Users owner = user("通知の持ち主");
+        Users other = user("他人");
+        growthEventRepository.saveAll(List.of(
+            growthEvent(owner, "1件目"),
+            growthEvent(owner, "2件目"),
+            growthEvent(other, "他人の通知")
+        ));
+        flushAndClear();
+
+        assertThat(growthEventRepository.markAllAsRead(owner.getId(), Instant.now())).isEqualTo(2);
+        assertThat(growthEventRepository.findByUserIdAndReadAtIsNullOrderByCreatedAtAsc(owner.getId())).isEmpty();
+        assertThat(growthEventRepository.findByUserIdAndReadAtIsNullOrderByCreatedAtAsc(other.getId())).hasSize(1);
+        assertThat(growthEventRepository.findTop50ByUserIdOrderByCreatedAtDesc(owner.getId())).hasSize(2);
+    }
+
+    @Test
+    void countsUsageSources() {
+        Users user = user("利用状況を見るユーザー");
+        Conversation conversation = conversationRepository.save(Conversation.builder()
+            .user(user)
+            .type(ConversationType.DAILY)
+            .status(ConversationStatus.REVIEWED)
+            .reviewedAt(Instant.now())
+            .build());
+        messageRepository.saveAll(List.of(
+            message(conversation, 1, MessageRole.ASSISTANT),
+            message(conversation, 2, MessageRole.USER),
+            message(conversation, 3, MessageRole.ASSISTANT)
+        ));
+        flushAndClear();
+
+        assertThat(messageRepository.countByConversationUserIdAndRole(user.getId(), MessageRole.USER)).isEqualTo(1L);
+        assertThat(conversationRepository.countByUserIdAndReviewedAtIsNotNull(user.getId())).isEqualTo(1L);
+        assertThat(cardRepository.countByRecipientIdAndOpenedAtIsNotNull(user.getId())).isZero();
+    }
+
+    private GrowthEvent growthEvent(Users user, String message) {
+        return GrowthEvent.builder().user(user).type(GrowthEventType.LEVEL_UP).message(message).build();
+    }
+
+    private Message message(Conversation conversation, int seq, MessageRole role) {
+        return Message.builder().conversation(conversation).seq(seq).role(role).text("メッセージ" + seq).build();
     }
 
     private Users user(String displayName) {

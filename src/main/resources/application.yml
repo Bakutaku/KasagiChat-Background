@@ -59,3 +59,6 @@ app:
   security:
     frontend-url: ${APP_SECURITY_PUBLIC_URL:http://localhost:3000}
     pending-registration-ttl: ${PENDING_REGISTRATION_TTL:30m}
+  usage:
+    # LLM呼び出し1回あたりの概算コスト（USD）。利用状況の表示にのみ使う。
+    estimated-cost-per-call-usd: ${USAGE_ESTIMATED_COST_PER_CALL_USD:0.002}
