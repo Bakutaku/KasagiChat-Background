@@ -93,7 +93,7 @@ public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHand
         if(existingAuth.isPresent()) {
             LoginUserPrincipal loginUser = new LoginUserPrincipal(existingAuth.get().getUser().getId());
             auth = authenticated(loginUser,SecurityConst.ROLE_USER);
-            redirectPath = "/";
+            redirectPath = "/home";
         } else {
             PendingUsers pendingUser = userRegistrationService.createPendingUser(
                 identity.provider(),
@@ -103,7 +103,7 @@ public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHand
             );
             PendingUserPrincipal principal = new PendingUserPrincipal(pendingUser.getId());
             auth = authenticated(principal, SecurityConst.ROLE_PENDING_REGISTRATION);
-            redirectPath = "/signup";
+            redirectPath = "/onboarding";
         }
 
         SecurityContext context = SecurityContextHolder.createEmptyContext();
