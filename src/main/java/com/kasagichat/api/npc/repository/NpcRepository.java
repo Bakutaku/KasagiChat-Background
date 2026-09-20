@@ -18,4 +18,20 @@ public interface NpcRepository extends JpaRepository<Npc, Long> {
      * @return 該当するNPC。未作成の場合は空
      */
     Optional<Npc> findByUserId(Long userId);
+
+    /**
+     * ユーザーのNPCが作成済みか確認する。
+     *
+     * @param userId ユーザーの内部ID
+     * @return 作成済みならtrue
+     */
+    boolean existsByUserId(Long userId);
+
+    /**
+     * ユーザーのNPCが誕生済みか確認する。
+     *
+     * @param userId ユーザーの内部ID
+     * @return bornAtが設定済みならtrue
+     */
+    boolean existsByUserIdAndBornAtIsNotNull(Long userId);
 }

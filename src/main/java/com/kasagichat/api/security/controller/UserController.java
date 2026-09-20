@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.kasagichat.api.security.controller.dto.response.UserMeResponse;
 import com.kasagichat.api.security.principal.LoginUserPrincipal;
+import com.kasagichat.api.security.service.OnboardingService;
 import com.kasagichat.api.security.service.UserService;
 
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 public class UserController {
     
     private final UserService userService;
+    private final OnboardingService onboardingService;
 
     /**
      * 現在認証されているユーザーの情報を取得する。
@@ -26,7 +28,10 @@ public class UserController {
      */
     @GetMapping ("/me")
     public UserMeResponse me(@AuthenticationPrincipal LoginUserPrincipal principal) {
-        return UserMeResponse.from(userService.getCurrentUser(principal.userId()));
+        return UserMeResponse.from(
+            userService.getCurrentUser(principal.userId()),
+            onboardingService.getStatus(principal.userId())
+        );
         
     }
 }

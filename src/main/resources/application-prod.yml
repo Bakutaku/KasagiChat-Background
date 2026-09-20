@@ -18,6 +18,16 @@ spring:
     jdbc:
       # SPRING_SESSIONテーブルも本番環境では事前に構築する。
       initialize-schema: never
+  ai:
+    model:
+      chat: bedrock-converse
+    bedrock:
+      aws:
+        region: ${AWS_REGION}
+      converse:
+        chat:
+          model: ${DEMO_LLM_MODEL}
+          max-tokens: 512
 
 server:
   servlet:
@@ -32,8 +42,8 @@ management:
 
 logging:
   level:
-    org.springframework.security: WARN
-    org.hibernate.SQL: "OFF"
+    '[org.springframework.security]': WARN
+    '[org.hibernate.SQL]': "OFF"
 
 app:
   security:

@@ -352,13 +352,14 @@ KasagiChat本体リポジトリの `requirements.md`（2026-09-13改訂）に基
 | 優先度 | Method | Path | 概要 |
 | --- | --- | --- | --- |
 | M | `GET` | `/api/credentials` | 現在の設定。プロバイダ、マスク済みキー、DEMOの場合はデモ残り回数 |
+| M | `GET` | `/api/credentials/options` | 選択可能なBYOKモデルと、運営固定のDEMOモデル |
 | M | `PUT` | `/api/credentials` | 登録・変更。`provider` によって入力を切り替える |
 | M | `DELETE` | `/api/credentials` | 削除 |
 
 `PUT /api/credentials` のリクエスト例:
 
 ```json
-{ "provider": "OPENAI", "apiKey": "sk-..." }
+{ "provider": "OPENAI", "model": "gpt-5-mini", "apiKey": "sk-..." }
 ```
 
 ```json
@@ -368,6 +369,19 @@ KasagiChat本体リポジトリの `requirements.md`（2026-09-13改訂）に基
 - `OPENAI` / `ANTHROPIC`: 保存前にモデル一覧取得などで有効性を1回検証します。無効な場合は `INVALID_API_KEY` を返します。キーは暗号化して保存します。
 - `DEMO`: 合言葉を `demo_passphrases` と照合します。一致しない場合は `INVALID_PASSPHRASE` を返します。呼び出し回数はアカウント単位で数えます。
 - OpenAI互換エンドポイント（base URL指定）は運営設定のみとし、APIからは指定できません（SSRF対策）。
+
+`GET /api/credentials` は未設定時に `{"configured":false,...}`、設定済み時に `provider`、`model`、`maskedApiKey` を返します。生のAPIキーと合言葉は返しません。DEMOでは `demoUsage: {used, limit, remaining}` も返します。
+
+手動で環境へ設定するLLM関連変数（秘密値をリポジトリへ保存しないこと）:
+
+- `API_CREDENTIAL_ENCRYPTION_KEY`: Base64形式の32バイトAES鍵
+- `DEMO_LLM_API_KEY`: デモで使用する運営APIキー
+- `DEMO_LLM_PROVIDER`: `OPENAI` または `ANTHROPIC`
+- `DEMO_LLM_MODEL`: デモで固定するモデルID
+- `OPENAI_ALLOWED_MODELS`: BYOKで選択可能なモデルIDのカンマ区切り一覧（任意）
+- `ANTHROPIC_ALLOWED_MODELS`: BYOKで選択可能なモデルIDのカンマ区切り一覧（任意）
+
+`prod` はHibernateの `ddl-auto: validate` を使うため、既存DBにはデプロイ前に `api_credentials.model_name varchar(100)` を追加してください（デバッグ環境は `ddl-auto: update`）。
 
 ### NPC・プロフィール帳
 

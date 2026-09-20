@@ -66,6 +66,12 @@ public class ApiCredential extends BaseTimeEntity {
     private LlmProvider provider;
 
     /**
+     * BYOKでユーザーが選択したモデル名。DEMOは運営設定を都度使うためnull。
+     */
+    @Column(name = "model_name", length = 100)
+    private String modelName;
+
+    /**
      * 暗号化済みのAPIキー。IVと暗号文を連結して保存する。DEMOの場合はnull。
      */
     @Column

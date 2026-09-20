@@ -18,4 +18,12 @@ public interface ApiCredentialRepository extends JpaRepository<ApiCredential, Lo
      * @return 該当する設定。未設定の場合は空
      */
     Optional<ApiCredential> findByUserId(Long userId);
+
+    /**
+     * ユーザーがAPIキーまたはデモ利用を設定済みか確認する。
+     *
+     * @param userId ユーザーの内部ID
+     * @return 設定済みならtrue
+     */
+    boolean existsByUserId(Long userId);
 }

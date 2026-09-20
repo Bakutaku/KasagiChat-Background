@@ -25,5 +25,13 @@ management:
 
 logging:
   level:
-    org.springframework.security: INFO
-    org.hibernate.SQL: DEBUG
+    '[org.springframework.security]': INFO
+    '[org.hibernate.SQL]': DEBUG
+
+app:
+  llm:
+    demo:
+      provider: ${DEMO_LLM_PROVIDER:DEMO}
+      base-url: ${DEMO_LLM_BASE_URL:http://localhost:1234/v1}
+      model: ${DEMO_LLM_MODEL:google/gemma-4-e4b}
+      api-key: ${DEMO_LLM_API_KEY:}

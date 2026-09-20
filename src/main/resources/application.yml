@@ -59,3 +59,10 @@ app:
   security:
     frontend-url: ${APP_SECURITY_PUBLIC_URL:http://localhost:3000}
     pending-registration-ttl: ${PENDING_REGISTRATION_TTL:30m}
+  llm:
+    # APIキー自体は環境変数からだけ読み込む。任意base URLは公開しない。
+    credential-encryption-key: ${API_CREDENTIAL_ENCRYPTION_KEY:}
+    openai:
+      models: ${OPENAI_ALLOWED_MODELS:gpt-5-mini,gpt-4.1-mini}
+    anthropic:
+      models: ${ANTHROPIC_ALLOWED_MODELS:claude-haiku-4-5,claude-sonnet-4-5}
