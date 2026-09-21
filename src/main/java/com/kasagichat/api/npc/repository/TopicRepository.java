@@ -22,6 +22,14 @@ public interface TopicRepository extends JpaRepository<Topic, Long> {
     List<Topic> findByNpcIdOrderByLearnedAtDesc(Long npcId);
 
     /**
+     * 指定した会話の振り返りで追加された話題を取得する。
+     *
+     * @param conversationId 会話の内部ID
+     * @return 追加された話題
+     */
+    List<Topic> findBySourceConversationIdOrderByIdAsc(Long conversationId);
+
+    /**
      * 指定したユーザーのNPCが持つ話題を取得する。他人の話題は取得できない。
      *
      * @param id 話題の内部ID

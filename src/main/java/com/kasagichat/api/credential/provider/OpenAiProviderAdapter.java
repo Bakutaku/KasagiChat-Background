@@ -26,10 +26,22 @@ public class OpenAiProviderAdapter implements LlmProviderAdapter {
         OpenAiChatOptions options = OpenAiChatOptions.builder()
             .apiKey(apiKey)
             .model(model)
+            .maxTokens(1200)
+            .maxRetries(0)
+            .timeout(Duration.ofSeconds(45))
+            .build();
+        return OpenAiChatModel.builder().options(options).build();
+    }
+
+    @Override
+    public void verify(String apiKey, String model) {
+        OpenAiChatOptions options = OpenAiChatOptions.builder()
+            .apiKey(apiKey)
+            .model(model)
             .maxTokens(1)
             .maxRetries(0)
             .timeout(Duration.ofSeconds(15))
             .build();
-        return OpenAiChatModel.builder().options(options).build();
+        OpenAiChatModel.builder().options(options).build().call("Reply with OK.");
     }
 }

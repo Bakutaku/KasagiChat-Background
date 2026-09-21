@@ -35,88 +35,88 @@ $$;
 
 CREATE TEMP TABLE delete_target_conversation ON COMMIT DROP AS
 SELECT id
-FROM conversation
+FROM conversations
 WHERE user_id IN (SELECT id FROM delete_target_user);
 
 CREATE TEMP TABLE delete_target_npc ON COMMIT DROP AS
 SELECT id
-FROM npc
+FROM npcs
 WHERE user_id IN (SELECT id FROM delete_target_user);
 
 CREATE TEMP TABLE delete_target_topic ON COMMIT DROP AS
 SELECT id
-FROM topic
+FROM topics
 WHERE npc_id IN (SELECT id FROM delete_target_npc)
    OR source_conversation_id IN (SELECT id FROM delete_target_conversation);
 
 CREATE TEMP TABLE delete_target_event ON COMMIT DROP AS
 SELECT id
-FROM event
+FROM events
 WHERE creator_user_id IN (SELECT id FROM delete_target_user);
 
 CREATE TEMP TABLE delete_target_daily_question ON COMMIT DROP AS
 SELECT id
-FROM daily_question
+FROM daily_questions
 WHERE user_id IN (SELECT id FROM delete_target_user)
    OR source_conversation_id IN (SELECT id FROM delete_target_conversation);
 
 -- conversation -> daily_question の参照を先に外す。
-UPDATE conversation
+UPDATE conversations
 SET daily_question_id = NULL
 WHERE daily_question_id IN (SELECT id FROM delete_target_daily_question);
 
 -- 子テーブルから順に削除する。
-DELETE FROM memory
+DELETE FROM memories
 WHERE topic_id IN (SELECT id FROM delete_target_topic)
    OR source_conversation_id IN (SELECT id FROM delete_target_conversation);
 
-DELETE FROM message
+DELETE FROM messages
 WHERE conversation_id IN (SELECT id FROM delete_target_conversation);
 
-DELETE FROM daily_question
+DELETE FROM daily_questions
 WHERE id IN (SELECT id FROM delete_target_daily_question);
 
-DELETE FROM topic
+DELETE FROM topics
 WHERE id IN (SELECT id FROM delete_target_topic);
 
-DELETE FROM unlocked_item
+DELETE FROM unlocked_items
 WHERE user_id IN (SELECT id FROM delete_target_user)
    OR achievement_id IN (
-     SELECT id FROM achievement WHERE user_id IN (SELECT id FROM delete_target_user)
+     SELECT id FROM achievements WHERE user_id IN (SELECT id FROM delete_target_user)
    );
 
-DELETE FROM achievement
+DELETE FROM achievements
 WHERE user_id IN (SELECT id FROM delete_target_user);
 
-DELETE FROM achievement_counter
+DELETE FROM achievement_counters
 WHERE user_id IN (SELECT id FROM delete_target_user);
 
-DELETE FROM growth_event
+DELETE FROM growth_events
 WHERE user_id IN (SELECT id FROM delete_target_user);
 
-DELETE FROM npc
+DELETE FROM npcs
 WHERE id IN (SELECT id FROM delete_target_npc);
 
-DELETE FROM api_credential
+DELETE FROM api_credentials
 WHERE user_id IN (SELECT id FROM delete_target_user);
 
-DELETE FROM demo_usage
+DELETE FROM demo_usages
 WHERE user_id IN (SELECT id FROM delete_target_user);
 
 -- 対象が受取人・相手であるカード、および対象が作成したイベントのカードを削除する。
-DELETE FROM card
+DELETE FROM cards
 WHERE recipient_user_id IN (SELECT id FROM delete_target_user)
    OR partner_user_id IN (SELECT id FROM delete_target_user)
    OR event_id IN (SELECT id FROM delete_target_event);
 
-DELETE FROM event_participant
+DELETE FROM event_participants
 WHERE user_id IN (SELECT id FROM delete_target_user)
    OR event_id IN (SELECT id FROM delete_target_event);
 
-DELETE FROM event
+DELETE FROM events
 WHERE id IN (SELECT id FROM delete_target_event);
 
-DELETE FROM conversation
+DELETE FROM conversations
 WHERE id IN (SELECT id FROM delete_target_conversation);
 
 DELETE FROM user_terms_agreement

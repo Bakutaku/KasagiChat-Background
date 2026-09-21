@@ -26,10 +26,22 @@ public class AnthropicProviderAdapter implements LlmProviderAdapter {
         AnthropicChatOptions options = AnthropicChatOptions.builder()
             .apiKey(apiKey)
             .model(model)
+            .maxTokens(1200)
+            .maxRetries(0)
+            .timeout(Duration.ofSeconds(45))
+            .build();
+        return AnthropicChatModel.builder().options(options).build();
+    }
+
+    @Override
+    public void verify(String apiKey, String model) {
+        AnthropicChatOptions options = AnthropicChatOptions.builder()
+            .apiKey(apiKey)
+            .model(model)
             .maxTokens(1)
             .maxRetries(0)
             .timeout(Duration.ofSeconds(15))
             .build();
-        return AnthropicChatModel.builder().options(options).build();
+        AnthropicChatModel.builder().options(options).build().call("Reply with OK.");
     }
 }

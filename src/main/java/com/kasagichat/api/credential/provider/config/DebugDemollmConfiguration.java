@@ -28,9 +28,9 @@ public class DebugDemollmConfiguration {
             .baseUrl(demo.baseUrl())
             .apiKey(demo.apiKey())
             .model(demo.model())
-            .maxTokens(1)
+            .maxTokens(1200)
             .maxRetries(0)
-            .timeout(Duration.ofSeconds(15))
+            .timeout(Duration.ofSeconds(45))
             .build();
         return OpenAiChatModel.builder().options(options).build();
     }

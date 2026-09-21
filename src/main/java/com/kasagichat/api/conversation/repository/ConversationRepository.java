@@ -5,11 +5,16 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.kasagichat.api.conversation.model.Conversation;
 import com.kasagichat.api.conversation.model.enums.ConversationScene;
 import com.kasagichat.api.conversation.model.enums.ConversationStatus;
 import com.kasagichat.api.conversation.model.enums.ConversationType;
+
+import jakarta.persistence.LockModeType;
 
 /**
  * 会話を永続化するRepository。
@@ -24,6 +29,20 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
      * @return 該当する会話。存在しない、または他人の会話の場合は空
      */
     Optional<Conversation> findByPublicIdAndUserId(UUID publicId, Long userId);
+
+    /**
+     * メッセージ送信・振り返りの二重実行を防ぐため、会話を排他ロックして取得する。
+     *
+     * @param publicId 会話の公開ID
+     * @param userId 操作するユーザーの内部ID
+     * @return 該当する会話。存在しない、または他人の会話の場合は空
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Conversation c where c.publicId = :publicId and c.user.id = :userId")
+    Optional<Conversation> findByPublicIdAndUserIdForUpdate(
+        @Param("publicId") UUID publicId,
+        @Param("userId") Long userId
+    );
 
     /**
      * 再開対象の会話を取得する。同じ種別・シーンで、指定した状態以外の最新の会話を返す。
