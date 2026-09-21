@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.kasagichat.api.npc.model.Topic;
@@ -12,6 +13,15 @@ import com.kasagichat.api.npc.model.Topic;
  * NPCが覚えた話題を永続化するRepository。
  */
 public interface TopicRepository extends JpaRepository<Topic, Long> {
+
+    /** 所有NPCの品物を関連するマスタ・会話とまとめて取得する。 */
+    @EntityGraph(attributePaths = {"category", "sourceConversation", "sourceConversation.user"})
+    List<Topic> findByNpcIdOrderByLearnedAtDescIdDesc(Long npcId);
+
+    /** NPCは認証済みユーザーから取得したものに限定する。 */
+    Optional<Topic> findByIdAndNpcId(Long id, Long npcId);
+
+    boolean existsByNpcIdAndHomeSlotIdAndIdNot(Long npcId, String homeSlotId, Long id);
 
     /**
      * NPCの話題を、覚えた日時の新しい順に取得する。

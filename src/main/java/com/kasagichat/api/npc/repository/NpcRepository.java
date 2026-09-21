@@ -7,9 +7,9 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import jakarta.persistence.LockModeType;
-
 import com.kasagichat.api.npc.model.Npc;
+
+import jakarta.persistence.LockModeType;
 
 /**
  * NPCを永続化するRepository。
@@ -25,7 +25,7 @@ public interface NpcRepository extends JpaRepository<Npc, Long> {
     Optional<Npc> findByUserId(Long userId);
 
     /**
-     * NPC誕生状態を更新するため、ユーザーのNPCを排他ロックして取得する。
+     * NPC誕生状態や家の配置を安全に更新するため、ユーザーのNPCを排他ロックして取得する。
      *
      * @param userId ユーザーの内部ID
      * @return 該当するNPC。未作成の場合は空

@@ -135,6 +135,9 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 | `GET` | `/api/terms/required` | 不要 | 現在有効な最新規約を取得 |
 | `GET` | `/api/registrations/me` | 仮登録 | 現在の仮登録ユーザー情報を取得 |
 | `GET` | `/api/user/me` | 登録済み | 現在ログイン中のユーザー情報を取得 |
+| `GET` | `/api/home` | 登録済み | 本人の分身・思い出の品・配置・解禁アイテムを取得 |
+| `PUT` | `/api/home/items/{topicId}/placement` | 登録済み | 思い出の品を固定スロットへ配置・移動 |
+| `DELETE` | `/api/home/items/{topicId}/placement` | 登録済み | 思い出の品を収納へ戻す |
 | `POST` | `/api/registrations/complete` | 仮登録 | 規約へ同意して本登録を完了 |
 | `POST` | `/api/logout` | セッション | ログアウト |
 | `GET` | `/actuator/health` | 不要 | ヘルスチェック |
@@ -152,6 +155,12 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 同じ未登録OAuthアカウントで再ログインした場合、仮登録レコードを増やさず、表示名候補、アバターURL、有効期限を更新します。
 
 ## エンドポイント詳細
+
+### 家の取得・配置
+
+API契約、フロント向けTypeScript型、スロット互換性、エラーとDB適用手順は [家API](docs/home-api.md) を参照してください。
+思い出の品は既存の話題から導出し、配置先のみ `topics.home_slot_id` へ保存します。
+既存DBには更新版起動前に [手動マイグレーション](scripts/migrations/20260921_home_slots.sql) が必要です。
 
 ### CSRF Cookieの初期化
 

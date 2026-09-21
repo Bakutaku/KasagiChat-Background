@@ -2,6 +2,7 @@ package com.kasagichat.api.npc.repository;
 
 import java.util.List;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.kasagichat.api.npc.model.UnlockedItem;
@@ -10,6 +11,9 @@ import com.kasagichat.api.npc.model.UnlockedItem;
  * ユーザーが解禁したアイテムを永続化するRepository。
  */
 public interface UnlockedItemRepository extends JpaRepository<UnlockedItem, Long> {
+
+    @EntityGraph(attributePaths = "item")
+    List<UnlockedItem> findByUserIdOrderByUnlockedAtDescIdDesc(Long userId);
 
     /**
      * ユーザーが解禁したアイテムを取得する。

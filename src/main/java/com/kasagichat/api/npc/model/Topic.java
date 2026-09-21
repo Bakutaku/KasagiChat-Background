@@ -4,9 +4,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.hibernate.annotations.Check;
+
 import com.kasagichat.api.common.model.BaseTimeEntity;
 import com.kasagichat.api.conversation.model.Conversation;
 import com.kasagichat.api.master.model.TopicCategory;
+import com.kasagichat.api.npc.model.enums.HomeSlot;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -43,9 +46,13 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Check(name = "ck_topics_home_slot", constraints = HomeSlot.CHECK_CONSTRAINT)
 @Table(
     name = "topics",
-    uniqueConstraints = @UniqueConstraint(name = "uk_topics_npc_name", columnNames = {"npc_id", "name"}),
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_topics_npc_name", columnNames = {"npc_id", "name"}),
+        @UniqueConstraint(name = "uk_topics_npc_home_slot", columnNames = {"npc_id", "home_slot_id"})
+    },
     indexes = {
         @Index(name = "idx_topics_category_id", columnList = "category_id"),
         @Index(name = "idx_topics_source_conversation_id", columnList = "source_conversation_id")
@@ -79,6 +86,10 @@ public class Topic extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private TopicCategory category;
+
+    /** 家の固定配置スロット。nullは収納。話題削除時は配置も同時に消える。 */
+    @Column(name = "home_slot_id", length = 30)
+    private String homeSlotId;
 
     /**
      * 話題への興味度。マッチングの重み付けに使う。
