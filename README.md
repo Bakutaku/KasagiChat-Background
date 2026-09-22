@@ -136,6 +136,18 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 | `GET` | `/api/registrations/me` | 仮登録 | 現在の仮登録ユーザー情報を取得 |
 | `GET` | `/api/user/me` | 登録済み | 現在ログイン中のユーザー情報を取得 |
 | `GET` | `/api/home` | 登録済み | 本人の分身・思い出の品・配置・解禁アイテムを取得 |
+| `GET` | `/api/npc` | 登録済み | 本人のNPCを取得 |
+| `POST` | `/api/npc` | 登録済み | 誕生前のNPCを1体作成 |
+| `GET` | `/api/credentials` | 登録済み | AI利用設定を取得 |
+| `GET` | `/api/credentials/options` | 登録済み | 選択できるプロバイダとモデルを取得 |
+| `PUT` | `/api/credentials` | 登録済み | APIキーまたはデモの合言葉を登録 |
+| `DELETE` | `/api/credentials` | 登録済み | AI利用設定を削除 |
+| `GET` | `/api/daily-question` | 登録済み | 今日のひとことの質問を取得（なければ204） |
+| `GET` | `/api/conversations?status=UNREVIEWED` | 登録済み | 未振り返りの会話一覧を取得 |
+| `POST` | `/api/conversations` | 登録済み | 会話を開始、または未振り返りの会話を再開 |
+| `GET` | `/api/conversations/{id}` | 登録済み | 会話の状態と全メッセージを取得 |
+| `POST` | `/api/conversations/{id}/messages` | 登録済み | 発言を送り、NPCの応答を1件得る |
+| `POST` | `/api/conversations/{id}/review` | 登録済み | 会話を終えて振り返りを実行 |
 | `PUT` | `/api/home/items/{topicId}/placement` | 登録済み | 思い出の品を固定スロットへ配置・移動 |
 | `DELETE` | `/api/home/items/{topicId}/placement` | 登録済み | 思い出の品を収納へ戻す |
 | `POST` | `/api/registrations/complete` | 仮登録 | 規約へ同意して本登録を完了 |
@@ -328,6 +340,14 @@ GET /actuator/health
 | `401 Unauthorized` | `PENDING_REGISTRATION_EXPIRED` | 仮登録の有効期限が切れている |
 | `409 Conflict` | `USER_ALREADY_REGISTERED` | 同じOAuthアカウントがすでに登録済み |
 | `404 Not Found` | `USER_NOT_FOUND` | セッションが参照する登録済みユーザーが存在しない |
+| `400 Bad Request` | `INVALID_CONVERSATION_REQUEST` | 会話種別とシーンの組み合わせが不正 |
+| `400 Bad Request` | `CONVERSATION_TOO_SHORT` | 振り返りに必要な往復数へ達していない（`detail`の往復数は種別ごとに変わる。`BIRTH`は3、それ以外は1） |
+| `404 Not Found` | `CONVERSATION_NOT_FOUND` | 会話が存在しない、または本人の会話ではない |
+| `409 Conflict` | `CONVERSATION_FINISHED` | 終了済みの会話へ発言しようとした |
+| `409 Conflict` | `TURN_MISMATCH` | クライアントの往復数がサーバーの状態と一致しない |
+| `409 Conflict` | `NPC_STATE_INVALID` | NPCの誕生状態が会話種別の前提と合わない |
+| `409 Conflict` | `DAILY_QUESTION_NOT_AVAILABLE` | 今日のひとことに使える未消化の質問がない |
+| `503 Service Unavailable` | `CONVERSATION_CONFIGURATION_ERROR` | 会話の冒頭マスタが登録されていない |
 
 入力バリデーション違反、CSRFエラー、未認証、権限不足など、Spring SecurityまたはSpring MVCが直接返すエラーは上記のアプリケーション固有形式とは異なる場合があります。
 
@@ -418,6 +438,8 @@ NPCの見た目は固定プリセットです。プリセット一覧APIは設�
 
 ### 会話（NPC誕生・練習・今日のひとこと）
 
+**このセクションは実装済みです**（`GET /api/conversations` の会話履歴を除く）。稼働中の一覧は「エンドポイント一覧」を参照してください。
+
 会話は次の順に呼び出します。
 
 ```text
@@ -434,7 +456,23 @@ NPCの見た目は固定プリセットです。プリセット一覧APIは設�
 | M | `GET` | `/api/conversations/{id}` | メッセージ、状態、往復数、`canFinish` |
 | M | `POST` | `/api/conversations/{id}/messages` | 発言を送り、NPCの応答を受け取る |
 | M | `POST` | `/api/conversations/{id}/review` | 会話を終えて振り返りを実行（リトライも同じ） |
-| C | `GET` | `/api/conversations` | 会話履歴 |
+| C | `GET` | `/api/conversations` | 会話履歴（未実装） |
+
+`?status=UNREVIEWED` は進行中と終了済みの両方を新しい順に返します。1件あたりの形は次のとおりで、メッセージ本文は含みません（行ごとに読み込むとN+1になるため、本文は詳細取得へ委ねます）。
+
+```json
+[
+  {
+    "id": "0b8f6c1e-2d4a-4f7b-9c3e-5a1d2e3f4a5b",
+    "type": "PRACTICE",
+    "scene": "CAFE",
+    "status": "IN_PROGRESS",
+    "turn": 2,
+    "canFinish": true,
+    "startedAt": "2026-09-21T12:34:56Z"
+  }
+]
+```
 
 #### 会話の開始
 
@@ -511,6 +549,9 @@ NPCの見た目は固定プリセットです。プリセット一覧APIは設�
 - 振り返り済みの場合は保存済みの結果を返し、EXPなどを二重に反映しません。
 - LLM呼び出しに失敗した場合は `LLM_CALL_FAILED` を返し、会話は未振り返りのまま残ります。同じエンドポイントで再実行できます。
 - プロファイル・口調・話題・EXPは振り返り成功時にまとめて反映します。次回の今日のひとことの質問もここで生成します。
+- 質問は未消化のものが残っていない場合だけ追加します。練習は往復数に上限がないため、毎回生成すると質問が積み上がり、「今日のひとこと」が常に在庫を抱えた状態になるためです。保留は最大1件です。
+- 話題は `話題名|カテゴリコード` の形式で生成させ、`topic_categories` のコードへ解決します。未知のコードと未指定は分類なし（家では本棚）として保存します。
+- 話題名は大文字小文字を無視して既存と突き合わせます。区別して比較すると一意制約違反で振り返り全体が巻き戻り、再実行しても同じ理由で失敗し続けるためです。
 
 ### イベント・招待
 

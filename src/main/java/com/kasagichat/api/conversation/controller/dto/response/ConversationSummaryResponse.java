@@ -1,17 +1,18 @@
 package com.kasagichat.api.conversation.controller.dto.response;
 
-import java.util.List;
+import java.time.Instant;
 import java.util.UUID;
 
 import com.kasagichat.api.conversation.model.Conversation;
-import com.kasagichat.api.conversation.model.Message;
 import com.kasagichat.api.conversation.model.enums.ConversationScene;
 import com.kasagichat.api.conversation.model.enums.ConversationStatus;
 import com.kasagichat.api.conversation.model.enums.ConversationType;
 import com.kasagichat.api.conversation.service.ConversationPolicy;
 
 /**
- * 会話の現在状態と保存済みログ。
+ * 会話一覧に表示する要約。メッセージ本文は含めない。
+ *
+ * <p>一覧の各行でメッセージを読み込むとN+1になるため、本文は詳細取得へ委ねる。</p>
  *
  * @param id 会話の公開ID
  * @param type 会話種別
@@ -19,20 +20,20 @@ import com.kasagichat.api.conversation.service.ConversationPolicy;
  * @param status 会話状態
  * @param turn 成功済みの往復数
  * @param canFinish 振り返りを実行できるか
- * @param messages 保存済みメッセージ
+ * @param startedAt 会話を開始した日時
  */
-public record ConversationResponse(
+public record ConversationSummaryResponse(
     UUID id,
     ConversationType type,
     ConversationScene scene,
     ConversationStatus status,
     Integer turn,
     boolean canFinish,
-    List<ConversationMessageResponse> messages
+    Instant startedAt
 ) {
 
-    public static ConversationResponse from(Conversation conversation, List<Message> messages) {
-        return new ConversationResponse(
+    public static ConversationSummaryResponse from(Conversation conversation) {
+        return new ConversationSummaryResponse(
             conversation.getPublicId(),
             conversation.getType(),
             conversation.getScene(),
@@ -40,7 +41,7 @@ public record ConversationResponse(
             conversation.getTurn(),
             ConversationPolicy.of(conversation.getType())
                 .canFinish(conversation.getTurn(), conversation.getStatus()),
-            messages.stream().map(ConversationMessageResponse::from).toList()
+            conversation.getCreatedAt()
         );
     }
 }

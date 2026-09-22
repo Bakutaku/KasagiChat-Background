@@ -1,6 +1,5 @@
 package com.kasagichat.api.npc.repository;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,13 +46,4 @@ public interface TopicRepository extends JpaRepository<Topic, Long> {
      * @return 該当する話題。存在しない、または他人の話題の場合は空
      */
     Optional<Topic> findByIdAndNpcUserId(Long id, Long userId);
-
-    /**
-     * NPCの話題のうち、指定した名前のものを取得する。振り返りでの突き合わせに使う。
-     *
-     * @param npcId NPCの内部ID
-     * @param names 話題名の一覧
-     * @return 該当する話題の一覧
-     */
-    List<Topic> findByNpcIdAndNameIn(Long npcId, Collection<String> names);
 }

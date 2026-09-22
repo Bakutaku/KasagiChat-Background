@@ -9,11 +9,16 @@ import com.kasagichat.api.common.exception.BaseException;
  */
 public final class ConversationTooShortException extends BaseException {
 
-    public ConversationTooShortException() {
+    /**
+     * 必要な往復数を示して例外を生成する。
+     *
+     * @param requiredTurns 振り返りに必要な往復数
+     */
+    public ConversationTooShortException(int requiredTurns) {
         super(
             "CONVERSATION_TOO_SHORT",
             HttpStatus.BAD_REQUEST,
-            "NPC誕生の振り返りには3往復以上の会話が必要です。"
+            "振り返りには%d往復以上の会話が必要です。".formatted(requiredTurns)
         );
     }
 }

@@ -9,11 +9,12 @@ import com.kasagichat.api.common.exception.BaseException;
  */
 public final class ConversationConfigurationException extends BaseException {
 
-    public ConversationConfigurationException() {
-        super(
-            "CONVERSATION_CONFIGURATION_ERROR",
-            HttpStatus.SERVICE_UNAVAILABLE,
-            "NPC誕生会話の開始設定がありません。"
-        );
+    /**
+     * 不足しているマスタの内容を示して例外を生成する。
+     *
+     * @param message 不足している設定の説明
+     */
+    public ConversationConfigurationException(String message) {
+        super("CONVERSATION_CONFIGURATION_ERROR", HttpStatus.SERVICE_UNAVAILABLE, message);
     }
 }

@@ -127,7 +127,7 @@ class OAuthLoginSuccessHandlerTest {
         .extracting("authority")
         .containsExactly(SecurityConst.ROLE_USER);
     verify(redirectStrategy)
-        .sendRedirect(request, response, "http://localhost:3000/");
+        .sendRedirect(request, response, "http://localhost:3000/home");
     verifyNoInteractions(authenticationFailureHandler, userRegistrationService);
     }
 
@@ -155,7 +155,7 @@ class OAuthLoginSuccessHandlerTest {
         .extracting("authority")
         .containsExactly(SecurityConst.ROLE_PENDING_REGISTRATION);
     verify(redirectStrategy)
-        .sendRedirect(request, response, "http://localhost:3000/signup");
+        .sendRedirect(request, response, "http://localhost:3000/onboarding");
     verifyNoInteractions(authenticationFailureHandler);
     }
 

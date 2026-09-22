@@ -8,8 +8,8 @@ import jakarta.validation.constraints.NotNull;
 /**
  * 会話の開始・再開条件。
  *
- * @param type 会話種別。現在の実装対象はBIRTHのみ
- * @param scene 練習シーン。BIRTHではnull
+ * @param type 会話種別
+ * @param scene 練習シーン。PRACTICEのみ指定し、BIRTHとDAILYではnull
  */
 public record StartConversationRequest(
     @NotNull ConversationType type,

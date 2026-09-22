@@ -61,13 +61,16 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     );
 
     /**
-     * ユーザーの指定した状態の会話を新しい順に取得する。
+     * ユーザーの、指定した状態ではない会話を新しい順に取得する。
+     *
+     * <p>未振り返りの一覧はIN_PROGRESSとFINISHEDの2状態にまたがるため、
+     * 状態の一致ではなくREVIEWEDの除外で取得する。</p>
      *
      * @param userId ユーザーの内部ID
-     * @param status 会話の状態
+     * @param status 除外する会話の状態
      * @return 会話の一覧
      */
-    List<Conversation> findByUserIdAndStatusOrderByCreatedAtDesc(Long userId, ConversationStatus status);
+    List<Conversation> findByUserIdAndStatusNotOrderByCreatedAtDesc(Long userId, ConversationStatus status);
 
     /**
      * ユーザーが直前に冒頭マスタを使った会話を取得する。同じ冒頭の連続を避けるために使う。
