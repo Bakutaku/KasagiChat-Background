@@ -31,6 +31,15 @@ public class EventException extends BaseException {
         return new EventException("INVALID_EVENT_PERIOD", HttpStatus.BAD_REQUEST, "終了日時は開始日時より後にしてください");
     }
 
+    /** 他人宛てのカードも、存在を秘匿するためこれを返す。 */
+    public static EventException cardNotFound() {
+        return new EventException("CARD_NOT_FOUND", HttpStatus.NOT_FOUND, "カードが見つかりません");
+    }
+
+    public static EventException eventNotStarted() {
+        return new EventException("EVENT_NOT_STARTED", HttpStatus.CONFLICT, "このイベントはまだ始まっていません");
+    }
+
     public static EventException inviteCodeGenerationFailed() {
         return new EventException(
             "INVITE_CODE_GENERATION_FAILED", HttpStatus.INTERNAL_SERVER_ERROR, "招待コードを発行できませんでした");
