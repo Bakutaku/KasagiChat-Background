@@ -54,7 +54,7 @@ public class DevelopmentDemoEventInitializer implements ApplicationRunner {
 
     private static final List<SampleNpc> SAMPLE_NPCS = List.of(
         new SampleNpc(
-            "サンプル ユウキ", "ユウ", "SAMPLE_A",
+            "サンプル ユウキ", "ユウ", "cheerful-girl",
             "好奇心旺盛で、新しいものを見つけると誰かに話したくなるタイプ。初対面でも相手の好きなものを聞くのが得意。",
             "語尾が柔らかく「〜だよね」「〜かも」をよく使う。短い文でテンポよく話す。",
             List.of(
@@ -64,7 +64,7 @@ public class DevelopmentDemoEventInitializer implements ApplicationRunner {
             )
         ),
         new SampleNpc(
-            "サンプル ハルカ", "ハル", "SAMPLE_B",
+            "サンプル ハルカ", "ハル", "cool-girl",
             "落ち着いていて聞き上手。計画を立てるのが好きで、準備をしっかりしてから動く。",
             "丁寧語が基本で「〜ですね」とやさしく相づちを打つ。",
             List.of(
@@ -74,7 +74,7 @@ public class DevelopmentDemoEventInitializer implements ApplicationRunner {
             )
         ),
         new SampleNpc(
-            "サンプル ソラ", "ソラ", "SAMPLE_C",
+            "サンプル ソラ", "ソラ", "quiet-boy",
             "明るくて行動派。チームで何かを作るのが好きで、ハッカソンによく参加している。",
             "元気な口調で「！」が多い。擬音をよく使う。",
             List.of(
@@ -174,7 +174,7 @@ public class DevelopmentDemoEventInitializer implements ApplicationRunner {
      *
      * @param userName サンプルユーザーの表示名
      * @param npcName NPCの名前
-     * @param presetId 見た目のプリセットID（仮）
+     * @param presetId 見た目のプリセットID。フロントエンドの src/features/npc/presets.ts に実在するIDを使う
      * @param profile 人格文書
      * @param speechStyle 口調
      * @param topics 話題の一覧

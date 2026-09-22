@@ -101,6 +101,8 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 - デモ用の合言葉 `HOSHI26`
 - サンプルNPC3体が参加する常設デモイベント（招待コード `DEMO2026`）
 
+常設デモイベントは招待コードの有無だけで作成を判断するため、サンプルNPCの定義（名前・見た目のプリセットID・話題）を変えても既存のデータベースには反映されません。反映するには `events` の該当行を削除するか、データベースを作り直してください。
+
 本登録には、現在有効な規約データがデータベースに1件以上必要です。規約データが存在しない場合、本登録は `TERMS_AGREEMENT_REQUIRED` で拒否されます。
 
 ## API共通仕様
@@ -150,6 +152,15 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 | `POST` | `/api/conversations/{id}/review` | 登録済み | 会話を終えて振り返りを実行 |
 | `PUT` | `/api/home/items/{topicId}/placement` | 登録済み | 思い出の品を固定スロットへ配置・移動 |
 | `DELETE` | `/api/home/items/{topicId}/placement` | 登録済み | 思い出の品を収納へ戻す |
+| `POST` | `/api/events` | 登録済み | イベントを作成し、招待コードを発行（作成者は自動で参加） |
+| `GET` | `/api/events` | 登録済み | 作成した、または参加中のイベント一覧 |
+| `GET` | `/api/events/{id}` | 登録済み | イベントの詳細（参加者のみ） |
+| `GET` | `/api/events/{id}/participants` | 登録済み | 会場の賑わい表示用の参加者一覧（名前とプリセットIDのみ） |
+| `POST` | `/api/events/{id}/archive` | 登録済み | 作成者によるイベントの早期終了 |
+| `DELETE` | `/api/events/{id}/participants/me` | 登録済み | イベントから退出 |
+| `DELETE` | `/api/events/{id}` | 登録済み | 作成者のみのイベントを削除 |
+| `GET` | `/api/invitations/{code}` | 登録済み | 招待コードからイベントの概要を取得 |
+| `POST` | `/api/invitations/{code}/join` | 登録済み | 招待コードでイベントへ参加 |
 | `POST` | `/api/registrations/complete` | 仮登録 | 規約へ同意して本登録を完了 |
 | `POST` | `/api/logout` | セッション | ログアウト |
 | `GET` | `/actuator/health` | 不要 | ヘルスチェック |
@@ -348,6 +359,12 @@ GET /actuator/health
 | `409 Conflict` | `NPC_STATE_INVALID` | NPCの誕生状態が会話種別の前提と合わない |
 | `409 Conflict` | `DAILY_QUESTION_NOT_AVAILABLE` | 今日のひとことに使える未消化の質問がない |
 | `503 Service Unavailable` | `CONVERSATION_CONFIGURATION_ERROR` | 会話の冒頭マスタが登録されていない |
+| `400 Bad Request` | `INVALID_EVENT_PERIOD` | イベントの終了日時が開始日時より後になっていない |
+| `404 Not Found` | `EVENT_NOT_FOUND` | イベントが存在しない、または閲覧権限がない（存在を秘匿するため同じコードで返す） |
+| `409 Conflict` | `NPC_NOT_BORN` | 分身の誕生前にイベントを作成・参加しようとした |
+| `409 Conflict` | `EVENT_ENDED` | 終了したイベントに参加しようとした |
+| `409 Conflict` | `EVENT_HAS_PARTICIPANTS` | 作成者以外の参加記録があるイベントを削除しようとした |
+| `500 Internal Server Error` | `INVITE_CODE_GENERATION_FAILED` | 未使用の招待コードを発行できなかった |
 
 入力バリデーション違反、CSRFエラー、未認証、権限不足など、Spring SecurityまたはSpring MVCが直接返すエラーは上記のアプリケーション固有形式とは異なる場合があります。
 
@@ -557,12 +574,12 @@ NPCの見た目は固定プリセットです。プリセット一覧APIは設�
 
 | 優先度 | Method | Path | 概要 |
 | --- | --- | --- | --- |
-| M | `POST` | `/api/events` | `{ title, description, startDate, endDate, venueTemplate }` でイベントを作成。招待コードを発行し、作成者は自動で参加 |
+| M | `POST` | `/api/events` | `{ title, description, startsAt, endsAt, venueTemplate }` でイベントを作成。招待コードを発行し、作成者は自動で参加 |
 | M | `GET` | `/api/events` | 参加中・作成したイベントの一覧（開催前/開催中/終了のフェーズ付き） |
 | M | `GET` | `/api/events/{id}` | イベント詳細（参加者のみ） |
 | M | `GET` | `/api/events/{id}/participants` | 会場の賑わい表示用の参加者一覧（名前とプリセットIDのみ） |
 | M | `GET` | `/api/invitations/{code}` | 参加ページ用のイベント概要 |
-| M | `POST` | `/api/invitations/{code}/join` | 参加してマッチングを実行。参加済みでも成功扱い |
+| M | `POST` | `/api/invitations/{code}/join` | 参加する。参加済みでも成功扱い（マッチングの実行は未実装） |
 | M | `DELETE` | `/api/events/{id}/participants/me` | 退出 |
 | M | `DELETE` | `/api/events/{id}` | 参加者が作成者のみの場合に限り削除 |
 | S | `POST` | `/api/events/{id}/archive` | 作成者による早期終了 |
@@ -570,6 +587,8 @@ NPCの見た目は固定プリセットです。プリセット一覧APIは設�
 - 招待コードは6〜8文字の英数字です。QRコードはフロントエンドで生成します。
 - `/api/invitations/**` もログイン後のみ利用できます。
 - 常設デモイベントはシードデータで用意します。専用APIは設けません。
+- 招待コードは作成者にだけ返します（`EventResponse.inviteCode`）。誰を招くかを主催者が決められるようにするためです。
+- 参加時のマッチングと出会いカードの生成は未実装です。現在の参加は参加記録の作成だけを行います。
 
 ### 出会いカード
 
@@ -596,14 +615,11 @@ NPCの見た目は固定プリセットです。プリセット一覧APIは設�
 | `400 Bad Request` | `INVALID_API_KEY` | APIキーの有効性検証に失敗した |
 | `400 Bad Request` | `INVALID_PASSPHRASE` | デモの合言葉が一致しない、または無効化されている |
 | `400 Bad Request` | `CONVERSATION_TOO_SHORT` | 振り返りに必要な往復数に達していない |
-| `404 Not Found` | `CONVERSATION_NOT_FOUND` / `EVENT_NOT_FOUND` / `CARD_NOT_FOUND` | 対象が存在しない、または閲覧権限がない |
+| `404 Not Found` | `CONVERSATION_NOT_FOUND` / `CARD_NOT_FOUND` | 対象が存在しない、または閲覧権限がない |
 | `409 Conflict` | `NPC_STATE_INVALID` | NPCの誕生状態と操作が合わない |
 | `409 Conflict` | `TURN_MISMATCH` | `expectedTurn` が現在の往復数と一致しない |
 | `409 Conflict` | `CONVERSATION_FINISHED` | 終了済みの会話にメッセージを送った |
-| `409 Conflict` | `NPC_NOT_BORN` | NPC誕生前にイベントへ参加しようとした |
-| `409 Conflict` | `EVENT_ENDED` | 終了したイベントに参加しようとした |
 | `409 Conflict` | `EVENT_NOT_STARTED` | 開催前のイベントのカードを開封しようとした |
-| `409 Conflict` | `EVENT_HAS_PARTICIPANTS` | 作成者以外の参加者がいるイベントを削除しようとした |
 | `429 Too Many Requests` | `DEMO_LIMIT_EXCEEDED` | デモの呼び出し回数上限に達した |
 | `502 Bad Gateway` | `LLM_CALL_FAILED` | LLMプロバイダの呼び出しに失敗した、またはタイムアウトした |
 

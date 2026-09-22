@@ -1,5 +1,7 @@
 package com.kasagichat.api.npc.repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -49,4 +51,13 @@ public interface NpcRepository extends JpaRepository<Npc, Long> {
      * @return bornAtが設定済みならtrue
      */
     boolean existsByUserIdAndBornAtIsNotNull(Long userId);
+
+    /**
+     * 複数ユーザーの分身の名前をまとめて取得する。イベント一覧の作成者名の表示に使う。
+     *
+     * @param userIds ユーザーの内部IDの一覧
+     * @return ユーザーの内部IDと分身の名前の組
+     */
+    @Query("select n.user.id, n.name from Npc n where n.user.id in :userIds")
+    List<Object[]> findNamesByUserIds(@Param("userIds") Collection<Long> userIds);
 }
