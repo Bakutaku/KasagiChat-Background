@@ -48,6 +48,7 @@ public class EventService {
     private final EventRepository eventRepository;
     private final EventParticipantRepository eventParticipantRepository;
     private final InviteCodeGenerator inviteCodeGenerator;
+    private final CardMatchingService cardMatchingService;
 
     /** 作成者も自動で参加するため、作成にも分身の誕生を求める。 */
     @Transactional
@@ -145,7 +146,8 @@ public class EventService {
             participant.setLeftAt(null);
             eventParticipantRepository.saveAndFlush(participant);
         }
-        // TODO: タグ一致マッチングを実行し、出会いカードを生成する(次のブランチ)。
+        // 参加のたびに再計算する。参加してすぐカードが届くテンポを、差分計算より優先する。
+        cardMatchingService.recalculate(event.getId());
         // TODO: 実績カウンター EVENT_JOINED を加算し FIRST_EVENT を判定する(実績基盤の実装後)。
         return toResponse(event, userId, true, now);
     }
@@ -184,7 +186,8 @@ public class EventService {
         return toResponse(event, userId, isJoined(event, userId), now);
     }
 
-    private Event visibleEvent(Long userId, UUID eventId) {
+    /** イベント配下のカード一覧も同じ可視性で守るため、同じパッケージのサービスから使えるようにしている。 */
+    Event visibleEvent(Long userId, UUID eventId) {
         Event event = eventRepository.findByPublicId(eventId).orElseThrow(EventException::eventNotFound);
         if (!isCreator(event, userId) && !isJoined(event, userId)) {
             throw EventException.eventNotFound();

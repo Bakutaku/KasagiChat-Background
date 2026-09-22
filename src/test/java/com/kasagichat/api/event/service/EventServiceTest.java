@@ -42,6 +42,7 @@ class EventServiceTest {
     @Mock private EventRepository eventRepository;
     @Mock private EventParticipantRepository eventParticipantRepository;
     @Mock private InviteCodeGenerator inviteCodeGenerator;
+    @Mock private CardMatchingService cardMatchingService;
 
     private EventService service;
     private Users creator;
@@ -54,7 +55,8 @@ class EventServiceTest {
     @BeforeEach
     void setUp() {
         service = new EventService(
-            userService, npcRepository, eventRepository, eventParticipantRepository, inviteCodeGenerator);
+            userService, npcRepository, eventRepository, eventParticipantRepository, inviteCodeGenerator,
+            cardMatchingService);
         creator = Users.builder().id(7L).displayName("主催者").build();
         guest = Users.builder().id(8L).displayName("参加者").build();
         event = Event.builder().id(100L).publicId(eventId).creator(creator).title("交流会")
@@ -133,6 +135,30 @@ class EventServiceTest {
         assertThat(response.owner()).isFalse();
         // 招待コードは主催者だけが扱う。
         assertThat(response.inviteCode()).isNull();
+    }
+
+    @Test
+    void recalculatesMatchingOnEveryJoinSoCardsArriveRightAway() {
+        when(eventRepository.findByInviteCode("ABCD2345")).thenReturn(Optional.of(event));
+        when(npcRepository.existsByUserIdAndBornAtIsNotNull(8L)).thenReturn(true);
+        when(eventParticipantRepository.findByEventIdAndUserId(100L, 8L)).thenReturn(Optional.of(
+            EventParticipant.builder().id(1L).event(event).user(guest).joinedAt(startsAt).build()));
+        stubCreatorNpc();
+        when(eventParticipantRepository.countByEventIdAndLeftAtIsNull(100L)).thenReturn(2L);
+
+        service.join(8L, "ABCD2345");
+
+        verify(cardMatchingService).recalculate(100L);
+    }
+
+    @Test
+    void skipsMatchingWhenJoinIsRejected() {
+        event.setArchivedAt(Instant.parse("2026-03-01T12:00:00Z"));
+        when(eventRepository.findByInviteCode("ABCD2345")).thenReturn(Optional.of(event));
+
+        assertThatThrownBy(() -> service.join(8L, "ABCD2345")).isInstanceOf(BaseException.class);
+
+        verify(cardMatchingService, never()).recalculate(any());
     }
 
     @Test

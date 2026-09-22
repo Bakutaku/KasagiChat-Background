@@ -60,4 +60,21 @@ public interface NpcRepository extends JpaRepository<Npc, Long> {
      */
     @Query("select n.user.id, n.name from Npc n where n.user.id in :userIds")
     List<Object[]> findNamesByUserIds(@Param("userIds") Collection<Long> userIds);
+
+    /**
+     * 複数ユーザーの分身の名前と見た目プリセットをまとめて取得する。出会いカードの表示に使う。
+     *
+     * @param userIds ユーザーの内部IDの一覧
+     * @return ユーザーの内部ID・分身の名前・見た目プリセットIDの組
+     */
+    @Query("select n.user.id, n.name, n.presetId from Npc n where n.user.id in :userIds")
+    List<Object[]> findNameAndPresetsByUserIds(@Param("userIds") Collection<Long> userIds);
+
+    /**
+     * 複数ユーザーの分身をまとめて取得する。マッチングで全参加者の話題を引くために使う。
+     *
+     * @param userIds ユーザーの内部IDの一覧
+     * @return 該当する分身の一覧
+     */
+    List<Npc> findByUserIdIn(Collection<Long> userIds);
 }

@@ -38,4 +38,12 @@ public interface CardRepository extends JpaRepository<Card, Long> {
      * @return カードの一覧
      */
     List<Card> findByRecipientIdOrderByCreatedAtDesc(Long recipientId);
+
+    /**
+     * イベントで作られたカードをすべて取得する。マッチングの再計算で既存のカードを更新するために使う。
+     *
+     * @param eventId イベントの内部ID
+     * @return カードの一覧
+     */
+    List<Card> findByEventId(Long eventId);
 }
