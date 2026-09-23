@@ -1,7 +1,7 @@
 spring:
   datasource:
     # 本番環境でローカルDBや既定パスワードへ誤接続しないよう、値を必須にする。
-    url: jdbc:postgresql://${POSTGRESQL_HOSTNAME}:${POSTGRES_PORT}/${POSTGRES_DB}
+    url: jdbc:postgresql://${POSTGRESQL_HOSTNAME}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=require
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
 
@@ -46,6 +46,10 @@ logging:
     '[org.hibernate.SQL]': "OFF"
 
 app:
+  llm:
+    demo:
+      model: ${DEMO_LLM_MODEL}
+      iam-auth: true
   security:
     # 本番環境でlocalhostへリダイレクトしないよう、公開URLを必須にする。
     frontend-url: ${APP_SECURITY_PUBLIC_URL}

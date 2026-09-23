@@ -1,0 +1,4 @@
+# イメージに入れるのは実行可能な jar だけにする（ソースや .env を送らない）。
+*
+!build/libs/*.jar
+build/libs/*-plain.jar

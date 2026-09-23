@@ -28,7 +28,7 @@ public record LlmProperties(
         credentialEncryptionKey = credentialEncryptionKey == null ? "" : credentialEncryptionKey;
         openai = openai == null ? new ProviderProperties(List.of()) : openai;
         anthropic = anthropic == null ? new ProviderProperties(List.of()) : anthropic;
-        demo = demo == null ? new DemoProperties(null,null, "", "") : demo;
+        demo = demo == null ? new DemoProperties(null, null, "", "", false) : demo;
     }
 
     /**
@@ -51,8 +51,9 @@ public record LlmProperties(
      * @param baseUrl 固定接続先URL
      * @param model 固定モデルID
      * @param apiKey 運営APIキー
+     * @param iamAuth 本番BedrockのIAMロール認証を使う場合にtrue
      */
-    public record DemoProperties(LlmProvider provider,String baseUrl, String model, String apiKey) {
+    public record DemoProperties(LlmProvider provider, String baseUrl, String model, String apiKey, boolean iamAuth) {
         public DemoProperties {
             model = model == null ? "" : model.strip();
             apiKey = apiKey == null ? "" : apiKey.strip();
@@ -79,8 +80,7 @@ public record LlmProperties(
      * @return 設定済みならtrue
      */
     public boolean isDemoConfigured() {
-        return demo.provider() != null
-            && !demo.model().isBlank()
-            && !demo.apiKey().isBlank();
+        return !demo.model().isBlank()
+            && (demo.iamAuth() || (demo.provider() != null && !demo.apiKey().isBlank()));
     }
 }

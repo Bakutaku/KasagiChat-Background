@@ -53,6 +53,11 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+// コンテナイメージへ入れるjarを一意にするため、実行できないplain jarは作らない。
+tasks.named('jar') {
+	enabled = false
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 }

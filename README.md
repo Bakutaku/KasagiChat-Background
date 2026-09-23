@@ -30,7 +30,7 @@ Dev Containerを使う場合は、同梱のCompose設定によってJava開発�
 | `GOOGLE_CLIENT_ID` | はい | なし | Google OAuthクライアントID |
 | `GOOGLE_CLIENT_SECRET` | はい | なし | Google OAuthクライアントシークレット |
 | `POSTGRESQL_HOSTNAME` | `prod`では必須 | `localhost` | PostgreSQLのホスト名 |
-| `POSTGRESQL_PORT` | `prod`では必須 | `5432` | PostgreSQLのポート |
+| `POSTGRES_PORT` | `prod`では必須 | `5432` | PostgreSQLのポート |
 | `POSTGRES_DB` | `prod`では必須 | `postgres` | データベース名 |
 | `POSTGRES_USER` | `prod`では必須 | `postgres` | データベースユーザー |
 | `POSTGRES_PASSWORD` | `prod`では必須 | `postgres` | データベースパスワード |
@@ -73,6 +73,8 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 ```
 
 `prod` では起動前に、JPAエンティティに対応するテーブルと `SPRING_SESSION` テーブルを構築しておく必要があります。マイグレーションツール（Flyway）の導入は今後の課題です。
+
+AWS（ECS Express Mode）へのデプロイは `.github/workflows/deploy.yml` により `main` へのpushで自動実行されます。本番用のコンテナイメージは `Dockerfile` で、`./gradlew bootJar` で作成したjarを入れて作ります。AWS側の構築手順、本番スキーマとマスタデータの投入方法は KasagiChat リポジトリの `docs/deploy-aws.md` を参照してください。
 
 Google OAuth側には、次のリダイレクトURIを登録してください。
 
@@ -491,9 +493,8 @@ KasagiChat本体リポジトリの `requirements.md`（2026-09-13改訂）に基
 手動で環境へ設定するLLM関連変数（秘密値をリポジトリへ保存しないこと）:
 
 - `API_CREDENTIAL_ENCRYPTION_KEY`: Base64形式の32バイトAES鍵
-- `DEMO_LLM_API_KEY`: デモで使用する運営APIキー
-- `DEMO_LLM_PROVIDER`: `OPENAI` または `ANTHROPIC`
-- `DEMO_LLM_MODEL`: デモで固定するモデルID
+- `DEMO_LLM_MODEL`: 本番では Bedrock の推論プロファイルID。IAM ロールで認証するため本番にデモ用APIキーは不要
+- `DEMO_LLM_API_KEY` / `DEMO_LLM_PROVIDER`: `debug` プロファイルで OpenAI 互換のデモ接続を使う場合の設定。本番では使用しない
 - `OPENAI_ALLOWED_MODELS`: BYOKで選択可能なモデルIDのカンマ区切り一覧（任意）
 - `ANTHROPIC_ALLOWED_MODELS`: BYOKで選択可能なモデルIDのカンマ区切り一覧（任意）
 
