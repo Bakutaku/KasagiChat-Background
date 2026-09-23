@@ -108,15 +108,17 @@ jobs:
       # サービスが無ければ作成し、あれば更新する。新しいタスクが正常になってから切り替わり、
       # 失敗した場合は旧バージョンへ自動で戻る。完了（または失敗）まで待ってから終わる。
       # 環境変数とシークレットは毎回ここから全て渡すため、コンソールで直接変更しないこと。
+      # 公開リポジトリのActionsログは誰でも読めるため、アカウントIDとDB接続先はvarsではなく
+      # secretsから渡してログ上で伏せ字にする。
       - name: Deploy to ECS Express Mode
         id: deploy
         uses: aws-actions/amazon-ecs-deploy-express-service@v1
         with:
           service-name: ${{ env.ECS_SERVICE }}
           image: ${{ env.IMAGE }}
-          execution-role-arn: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ecsTaskExecutionRole
-          infrastructure-role-arn: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ecsInfrastructureRoleForExpressServices
-          task-role-arn: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/kasagichat-task-role
+          execution-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ecsTaskExecutionRole
+          infrastructure-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ecsInfrastructureRoleForExpressServices
+          task-role-arn: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/kasagichat-task-role
           container-port: 8080
           health-check-path: /actuator/health
           # 0.5 vCPU / 2GB。Spring Boot にはメモリ2GBを確保し、CPUは低負荷のため半分にして費用を抑える。
@@ -128,10 +130,10 @@ jobs:
             [
               {"name": "SPRING_PROFILES_ACTIVE", "value": "prod"},
               {"name": "AWS_REGION", "value": "${{ env.AWS_REGION }}"},
-              {"name": "POSTGRESQL_HOSTNAME", "value": "${{ vars.POSTGRESQL_HOSTNAME }}"},
+              {"name": "POSTGRESQL_HOSTNAME", "value": "${{ secrets.POSTGRESQL_HOSTNAME }}"},
               {"name": "POSTGRES_PORT", "value": "5432"},
               {"name": "POSTGRES_DB", "value": "postgres"},
-              {"name": "POSTGRES_USER", "value": "${{ vars.POSTGRES_USER }}"},
+              {"name": "POSTGRES_USER", "value": "${{ secrets.POSTGRES_USER }}"},
               {"name": "APP_SECURITY_PUBLIC_URL", "value": "${{ vars.APP_SECURITY_PUBLIC_URL }}"},
               {"name": "GITHUB_CLIENT_ID", "value": "${{ vars.OAUTH_GITHUB_CLIENT_ID }}"},
               {"name": "GOOGLE_CLIENT_ID", "value": "${{ vars.OAUTH_GOOGLE_CLIENT_ID }}"},
