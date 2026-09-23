@@ -168,7 +168,7 @@ class EntityMappingTest {
     void deletingAPlacedTopicAlsoFreesItsHomeSlot() {
         Npc npc = npcRepository.save(npc(user("配置した話題を消すユーザー")));
         Topic placed = topicRepository.save(topic(npc, "映画", true));
-        placed.setHomeSlotId("DISPLAY_1");
+        placed.setHomeSlotId("BOOKSHELF_1");
         topicRepository.save(placed);
         memoryRepository.save(Memory.builder().topic(placed).content("映画館へ行った").build());
         flushAndClear();
@@ -181,11 +181,11 @@ class EntityMappingTest {
         assertThat(memoryRepository.count()).isZero();
         // 同じスロットを別の話題で再利用できる（配置の一意制約が残っていない）。
         Topic replacement = topicRepository.save(topic(npc, "読書", false));
-        replacement.setHomeSlotId("DISPLAY_1");
+        replacement.setHomeSlotId("BOOKSHELF_1");
         topicRepository.save(replacement);
         flushAndClear();
         assertThat(topicRepository.findById(replacement.getId()).orElseThrow().getHomeSlotId())
-            .isEqualTo("DISPLAY_1");
+            .isEqualTo("BOOKSHELF_1");
     }
 
     @Test
