@@ -140,6 +140,9 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 | `GET` | `/api/home` | 登録済み | 本人の分身・思い出の品・配置・解禁アイテムを取得 |
 | `GET` | `/api/npc` | 登録済み | 本人のNPCを取得 |
 | `POST` | `/api/npc` | 登録済み | 誕生前のNPCを1体作成 |
+| `PATCH` | `/api/npc` | 登録済み | 人格文書・口調・口調反映ON/OFFを部分更新（プロフィール帳） |
+| `PATCH` | `/api/topics/{topicId}` | 登録済み | 話題の公開/非公開を切り替え |
+| `DELETE` | `/api/topics/{topicId}` | 登録済み | 話題を削除（思い出と家の配置も一緒に消える） |
 | `GET` | `/api/credentials` | 登録済み | AI利用設定を取得 |
 | `GET` | `/api/credentials/options` | 登録済み | 選択できるプロバイダとモデルを取得 |
 | `PUT` | `/api/credentials` | 登録済み | APIキーまたはデモの合言葉を登録 |
@@ -184,6 +187,73 @@ export GOOGLE_CLIENT_SECRET="your-client-secret"
 API契約、フロント向けTypeScript型、スロット互換性、エラーとDB適用手順は [家API](docs/home-api.md) を参照してください。
 思い出の品は既存の話題から導出し、配置先のみ `topics.home_slot_id` へ保存します。
 既存DBには更新版起動前に [手動マイグレーション](scripts/migrations/20260921_home_slots.sql) が必要です。
+
+### プロフィール帳（人格文書・口調・話題の管理）
+
+家の中から本人が分身の設定を読み書きするAPIです。統計（レベル・EXP・練習回数）は機械計算の整合性を守るため表示専用で、変更するAPIはありません。
+
+**話題一覧の取得APIはありません。** `GET /api/home` の `items` が全話題（`topicId`、`topicName`、カテゴリ、`publicTopic`、`slotId` など）を返すため、プロフィール帳の一覧表示はそのレスポンスを流用してください。下記の更新系は `items` の要素と同じ形を返すので、フロントエンドは返り値で該当要素を差し替えられます。
+
+#### NPC設定の部分更新
+
+```http
+PATCH /api/npc
+Content-Type: application/json
+```
+
+```json
+{ "profile": "人懐こく、聞き役に回りがち。", "speechStyle": "文末に「～かも」を付けがち。", "speechStyleEnabled": true }
+```
+
+| フィールド | 型 | 必須 | 制約 |
+| --- | --- | --- | --- |
+| `profile` | string | いいえ | 4000文字以内。振り返りで生成する人格文書の上限に揃える |
+| `speechStyle` | string | いいえ | 1000文字以内。振り返りで生成する口調の上限に揃える |
+| `speechStyleEnabled` | boolean | いいえ | 口調を会話へ反映するかどうか |
+
+- **省略またはnullは「変更しない」** を意味します。口調のON/OFFだけを変えたい場合は `speechStyleEnabled` だけを送ります。
+- **空文字列 `""` は「内容を空にする」更新** として保存し、nullとは区別します。
+- 文字数上限を超えた場合は `400 Bad Request` の `VALIDATION_FAILED` を返し、`errors` に該当フィールド名が入ります。
+- レスポンスは `GET /api/npc` と同じ `NpcResponse`（`name`、`presetId`、`level`、`exp`、`profile`、`speechStyle`、`speechStyleEnabled`、`bornAt`）です。
+- 誤学習した人格文書を本人が直接書き換えられるようにするための機能です。内容は検証せず、次の振り返りで上書き・追記されます。
+
+#### 話題の公開/非公開
+
+```http
+PATCH /api/topics/{topicId}
+Content-Type: application/json
+```
+
+```json
+{ "publicTopic": true }
+```
+
+- `publicTopic` は必須です。省略やnullは `VALIDATION_FAILED` になります。
+- 初めて公開を判断したときだけ `topics.visibility_decided_at` に現在時刻を記録します。以後の切り替えでは書き換えません（「一度は本人が確認した」ことを表すため）。
+- 公開した話題だけがイベントのマッチングとカード生成に使われます。
+- レスポンスは `GET /api/home` の `items` の要素と同じ形です。
+
+#### 話題の削除
+
+```http
+DELETE /api/topics/{topicId}
+```
+
+- `204 No Content` を返します。
+- **物理削除**です。プライバシーのため論理削除にはせず、その話題に属する思い出（`memories`）も一緒に削除します。
+- 家に配置していた場合は配置情報ごと消え、品物も表示されなくなります。話題を消せば品物も消えるのは、プライバシーの安全弁として意図した挙動です。
+- 削除した話題は復元できません。
+
+#### エラー
+
+| HTTP status | code | 発生条件 |
+| --- | --- | --- |
+| `400 Bad Request` | `VALIDATION_FAILED` | 文字数上限を超えた、または `publicTopic` が未指定 |
+| `400 Bad Request` | `INVALID_REQUEST_BODY` | JSONの形式または値が不正 |
+| `404 Not Found` | `NPC_NOT_FOUND` | NPCが未作成の状態で `PATCH /api/npc` を呼んだ |
+| `404 Not Found` | `TOPIC_NOT_FOUND` | 話題が存在しない、または他人の話題 |
+
+他人の話題も `404 Not Found` で返し、対象の存在を知られないようにします。
 
 ### CSRF Cookieの初期化
 
@@ -431,18 +501,17 @@ KasagiChat本体リポジトリの `requirements.md`（2026-09-13改訂）に基
 
 ### NPC・プロフィール帳
 
+**このセクションは実装済みです。** 稼働中の契約は「エンドポイント詳細」の [プロフィール帳](#プロフィール帳人格文書口調話題の管理) を参照してください。
+
+実装時に確定した設計からの変更点:
+
+- 話題の更新系のパスは設計案の `/api/npc/topics/{id}` ではなく **`/api/topics/{topicId}`** です。
+- 話題一覧API（`GET /api/npc/topics`）は**作りませんでした**。`GET /api/home` の `items` が同じ情報（全話題・カテゴリ・品物画像・`publicTopic`）を返すため、プロフィール帳はそれを流用します。
+- 公開/非公開の切り替えのフィールド名は `public` ではなく `publicTopic` です（`public` はJavaの予約語のため）。
+
 NPCの見た目は固定プリセットです。プリセット一覧APIは設けず、フロントエンドとサーバーで同じプリセットIDを定義します（サーバーはenumで検証）。
 
-| 優先度 | Method | Path | 概要 |
-| --- | --- | --- | --- |
-| M | `POST` | `/api/npc` | `{ presetId, name }` で未誕生状態のNPCを作成。誕生会話の振り返り成功で誕生済みになる |
-| M | `GET` | `/api/npc` | 名前、プリセットID、レベル、EXP、次レベルまでの必要EXP、人格文書、口調、口調反映ON/OFF、統計 |
-| M | `PATCH` | `/api/npc` | `{ profile?, speechStyle?, speechStyleEnabled? }`。文字数上限のみ検証 |
-| M | `GET` | `/api/npc/topics` | 話題一覧。カテゴリと品物画像を含む（思い出の品はここから導出） |
-| M | `PATCH` | `/api/npc/topics/{id}` | `{ public }` で公開/非公開を切り替え |
-| M | `DELETE` | `/api/npc/topics/{id}` | 話題を削除。対応する思い出の品も表示されなくなる |
-
-口調は発言の引用ではなく、振り返り時にLLMが更新する文章（`speechStyle`）として持ちます。
+口調は発言の引用ではなく、振り返り時にLLMが更新する文章（`speechStyle`）として持ちます。本人は人格文書と同様に全文を直接編集できます。
 
 ### 成長演出・実績（優先度低）
 
@@ -654,7 +723,7 @@ NPCの見た目は固定プリセットです。プリセット一覧APIは設�
 | `400 Bad Request` | `INVALID_API_KEY` | APIキーの有効性検証に失敗した |
 | `400 Bad Request` | `INVALID_PASSPHRASE` | デモの合言葉が一致しない、または無効化されている |
 | `400 Bad Request` | `CONVERSATION_TOO_SHORT` | 振り返りに必要な往復数に達していない |
-| `404 Not Found` | `CONVERSATION_NOT_FOUND` / `CARD_NOT_FOUND` | 対象が存在しない、または閲覧権限がない |
+| `404 Not Found` | `CONVERSATION_NOT_FOUND` / `CARD_NOT_FOUND` / `TOPIC_NOT_FOUND` | 対象が存在しない、または閲覧権限がない |
 | `409 Conflict` | `NPC_STATE_INVALID` | NPCの誕生状態と操作が合わない |
 | `409 Conflict` | `TURN_MISMATCH` | `expectedTurn` が現在の往復数と一致しない |
 | `409 Conflict` | `CONVERSATION_FINISHED` | 終了済みの会話にメッセージを送った |

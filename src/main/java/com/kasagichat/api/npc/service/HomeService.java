@@ -2,7 +2,6 @@ package com.kasagichat.api.npc.service;
 
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.kasagichat.api.master.model.LevelCurve;
 import com.kasagichat.api.master.repository.LevelCurveRepository;
 import com.kasagichat.api.npc.controller.dto.response.HomeResponse;
-import com.kasagichat.api.npc.controller.dto.response.HomeResponse.CategoryResponse;
 import com.kasagichat.api.npc.controller.dto.response.HomeResponse.ItemResponse;
 import com.kasagichat.api.npc.controller.dto.response.HomeResponse.NextLevelResponse;
 import com.kasagichat.api.npc.controller.dto.response.HomeResponse.NpcResponse;
@@ -19,7 +17,6 @@ import com.kasagichat.api.npc.controller.dto.response.HomeResponse.UnlockedItemR
 import com.kasagichat.api.npc.exception.HomeException;
 import com.kasagichat.api.npc.model.Npc;
 import com.kasagichat.api.npc.model.Topic;
-import com.kasagichat.api.npc.model.enums.HomeItemKind;
 import com.kasagichat.api.npc.model.enums.HomeSlot;
 import com.kasagichat.api.npc.repository.NpcRepository;
 import com.kasagichat.api.npc.repository.TopicRepository;
@@ -43,7 +40,7 @@ public class HomeService {
         userService.getCurrentUser(userId);
         Npc npc = npcRepository.findByUserId(userId).orElseThrow(HomeException::npcNotFound);
         var items = topicRepository.findByNpcIdOrderByLearnedAtDescIdDesc(npc.getId()).stream()
-            .map(topic -> toItem(topic, userId)).toList();
+            .map(topic -> ItemResponse.from(topic, userId)).toList();
         var unlockedItems = unlockedItemRepository.findByUserIdOrderByUnlockedAtDescIdDesc(userId).stream()
             .map(unlocked -> new UnlockedItemResponse(
                 unlocked.getId(), unlocked.getItem().getCode(), unlocked.getItem().getItemType(),
@@ -64,7 +61,7 @@ public class HomeService {
         Npc npc = lockNpc(userId);
         Topic topic = ownedTopic(npc, topicId);
         HomeSlot slot = HomeSlot.fromId(slotId).orElseThrow(HomeException::invalidSlot);
-        if (slot.acceptedKind() != kind(topic)) {
+        if (slot.acceptedKind() != ItemResponse.kindOf(topic)) {
             throw HomeException.incompatibleSlot();
         }
         if (!Objects.equals(topic.getHomeSlotId(), slotId)) {
@@ -74,7 +71,7 @@ public class HomeService {
             topic.setHomeSlotId(slotId);
             topicRepository.saveAndFlush(topic);
         }
-        return toItem(topic, userId);
+        return ItemResponse.from(topic, userId);
     }
 
     /** 収納は配置先を消すだけで、話題・思い出・獲得日時を変更しない。 */
@@ -96,27 +93,6 @@ public class HomeService {
     private Topic ownedTopic(Npc npc, Long topicId) {
         return topicRepository.findByIdAndNpcId(topicId, npc.getId())
             .orElseThrow(HomeException::itemNotFound);
-    }
-
-    private HomeItemKind kind(Topic topic) {
-        return topic.getCategory() == null ? HomeItemKind.BOOK : HomeItemKind.SOUVENIR;
-    }
-
-    private ItemResponse toItem(Topic topic, Long userId) {
-        var category = topic.getCategory();
-        var conversation = topic.getSourceConversation();
-        // 過去データの不整合があっても他人の会話IDを漏らさない。
-        UUID conversationId = conversation != null
-                && conversation.getUser() != null
-                && Objects.equals(conversation.getUser().getId(), userId)
-            ? conversation.getPublicId() : null;
-        return new ItemResponse(
-            topic.getId(), topic.getName(), kind(topic),
-            category == null ? null : new CategoryResponse(category.getCode(), category.getName()),
-            category == null ? topic.getName() : category.getDisplayName(),
-            category == null ? null : category.getItemImagePath(),
-            topic.getLearnedAt(), conversationId, Boolean.TRUE.equals(topic.getPublicTopic()), topic.getHomeSlotId()
-        );
     }
 
     private NextLevelResponse nextLevel(Npc npc) {

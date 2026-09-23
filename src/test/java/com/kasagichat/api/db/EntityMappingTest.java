@@ -165,6 +165,41 @@ class EntityMappingTest {
     }
 
     @Test
+    void deletingAPlacedTopicAlsoFreesItsHomeSlot() {
+        Npc npc = npcRepository.save(npc(user("配置した話題を消すユーザー")));
+        Topic placed = topicRepository.save(topic(npc, "映画", true));
+        placed.setHomeSlotId("DISPLAY_1");
+        topicRepository.save(placed);
+        memoryRepository.save(Memory.builder().topic(placed).content("映画館へ行った").build());
+        flushAndClear();
+
+        topicRepository.delete(topicRepository.findByIdAndNpcUserId(placed.getId(), npc.getUser().getId())
+            .orElseThrow());
+        flushAndClear();
+
+        assertThat(topicRepository.findByNpcIdOrderByLearnedAtDescIdDesc(npc.getId())).isEmpty();
+        assertThat(memoryRepository.count()).isZero();
+        // 同じスロットを別の話題で再利用できる（配置の一意制約が残っていない）。
+        Topic replacement = topicRepository.save(topic(npc, "読書", false));
+        replacement.setHomeSlotId("DISPLAY_1");
+        topicRepository.save(replacement);
+        flushAndClear();
+        assertThat(topicRepository.findById(replacement.getId()).orElseThrow().getHomeSlotId())
+            .isEqualTo("DISPLAY_1");
+    }
+
+    @Test
+    void findsTopicsOnlyForTheirOwner() {
+        Npc owner = npcRepository.save(npc(user("話題の持ち主")));
+        Npc other = npcRepository.save(npc(user("他人")));
+        Topic topic = topicRepository.save(topic(owner, "ゲーム", false));
+        flushAndClear();
+
+        assertThat(topicRepository.findByIdAndNpcUserId(topic.getId(), owner.getUser().getId())).isPresent();
+        assertThat(topicRepository.findByIdAndNpcUserId(topic.getId(), other.getUser().getId())).isEmpty();
+    }
+
+    @Test
     void readsOnlyMemoriesOfPublicTopicsForCards() {
         Npc npc = npcRepository.save(npc(user("思い出のあるユーザー")));
         Topic publicTopic = topicRepository.save(topic(npc, "ゲーム", true));
