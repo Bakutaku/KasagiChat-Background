@@ -1,11 +1,9 @@
-# mainへのpushで、テスト → jarビルド → コンテナイメージをECRへpush → ECS Express Modeへデプロイを行う。
+# 手動実行時に、テスト → jarビルド → コンテナイメージをECRへpush → ECS Express Modeへデプロイを行う。
 # AWSへの認証はOIDCで一時的な認証情報を受け取る方式にし、長期のアクセスキーをGitHubに置かない。
 # 構築手順は KasagiChat リポジトリの docs/deploy-aws.md を参照。
 name: Deploy to ECS Express Mode
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
